@@ -2,7 +2,7 @@
    蝴蝶借呗 DApp — on-chain reads + writes via ethers v6
    ═══════════════════════════════════════════════════════════════════ */
 
-import { BrowserProvider, Contract, formatEther, parseEther, formatUnits, parseUnits, ZeroAddress } from "ethers";
+import { BrowserProvider, Contract, Interface, formatEther, parseEther, formatUnits, parseUnits, ZeroAddress } from "ethers";
 
 const CFG = window.JIEBEI_CONFIG;
 const ABI = window.JIEBEI_ABI;
@@ -669,6 +669,58 @@ async function getLiveChainId() {
   return w.chainId != null ? Number(w.chainId) : null;
 }
 
+/* ─────────── Raw eth_sendTransaction helper ───────────
+   Completely bypasses the ethers Contract wrapper's tx flow.
+   Fixes the recurring 'could not coalesce error' on TP wallet, where
+   ethers v6's populate/send pipeline can't parse TP's error envelope.
+   We only use ethers for ABI-encoding (pure local computation). */
+
+let _routerIface = null;
+function routerIface() {
+  if (!_routerIface) _routerIface = new Interface(ABI.ROUTER);
+  return _routerIface;
+}
+
+async function sendTx({ to, data, value = 0n, gasLimit }) {
+  const w = window.JiebeiWallet;
+  if (!w || !w.activeProvider || !w.address) throw new Error("请先连接钱包");
+
+  const params = {
+    from: w.address,
+    to,
+    data,
+    gas: "0x" + BigInt(gasLimit).toString(16)
+  };
+  if (value > 0n) params.value = "0x" + BigInt(value).toString(16);
+
+  const hash = await w.activeProvider.request({
+    method: "eth_sendTransaction",
+    params: [params]
+  });
+
+  return {
+    hash,
+    async wait() {
+      // Poll public RPC for receipt (read-only, not the wallet provider)
+      for (let i = 0; i < 60; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+          const receipt = await readonlyProvider.getTransactionReceipt(hash);
+          if (receipt) {
+            const ok = receipt.status === 1 || receipt.status === 1n || String(receipt.status) === "1";
+            if (ok) return receipt;
+            throw new Error("交易上链失败（合约 revert）");
+          }
+        } catch (e) {
+          if (e && e.message && e.message.includes("交易上链失败")) throw e;
+          // transient RPC error, keep polling
+        }
+      }
+      throw new Error("交易长时间未上链，请到 BscScan 查看: " + hash);
+    }
+  };
+}
+
 async function ensureWritable() {
   const w = window.JiebeiWallet;
   if (!w || !w.address) { toast("请先连接钱包", "err"); return false; }
@@ -709,10 +761,9 @@ async function doApprove() {
   if (wei === 0n) { toast("请输入抵押数量", "err"); return;}
   const t = toast("授权代币中，请在钱包确认…", "loading", 0);
   try {
-    // Approve max to skip future approvals. Pin gasLimit to bypass
-    // ethers v6 estimation (avoids the TP-wallet coalesce error).
     const MAX = (1n << 256n) - 1n;
-    const tx = await tokenRW.approve(CFG.VAULT_ADDRESS, MAX, { gasLimit: 200_000n });
+    const data = tokenRO.interface.encodeFunctionData("approve", [CFG.VAULT_ADDRESS, MAX]);
+    const tx = await sendTx({ to: CFG.TOKEN_ADDRESS, data, gasLimit: 200_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("授权成功 ✓", "ok");
@@ -734,12 +785,8 @@ async function doStakeAndBorrow() {
 
   const t = toast("提交抵押 & 借款，请在钱包确认…", "loading", 0);
   try {
-    // Bypass ethers' gas estimation: FLAP's V3-style quoter triggers a
-    // write-protection halt during staticcall (consumes the whole estimate
-    // context by EVM Yellow Paper rule). Some wallets (TP in particular)
-    // then return an error shape ethers v6 can't coalesce, so we pin the
-    // gas limit manually. 60M is enough for the quoter burn + the real op.
-    const tx = await vaultRW.stakeAndBorrow(wei, { gasLimit: 60_000_000n });
+    const data = vaultRO.interface.encodeFunctionData("stakeAndBorrow", [wei]);
+    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, gasLimit: 60_000_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("抵押成功，BNB 已到账 ✓ 300 秒内完成买回", "ok", 6000);
@@ -756,8 +803,8 @@ async function doConfirmBuy() {
   if (!(await ensureWritable())) return;
   const t = toast("确认履约中，请在钱包确认…", "loading", 0);
   try {
-    // Pin gasLimit to skip ethers v6 estimation (TP compatibility)
-    const tx = await vaultRW.confirmBuy({ gasLimit: 1_500_000n });
+    const data = vaultRO.interface.encodeFunctionData("confirmBuy", []);
+    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, gasLimit: 1_500_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("履约成功 ✓ 可随时还款解锁抵押", "ok", 5000);
@@ -784,11 +831,11 @@ async function doQuickSwap() {
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
     const path = [CFG.WBNB, CFG.TOKEN_ADDRESS];
     // amountOutMin: 0 (we already pre-fill with 1.5× buffer; router's FOT variant tolerates slippage)
-    // Pin gasLimit: swapFOT + token's tax logic + router overhead — 1.2M is generous
-    const tx = await routerRW.swapExactETHForTokensSupportingFeeOnTransferTokens(
-      0n, path, window.JiebeiWallet.address, deadline,
-      { value: valWei, gasLimit: 1_200_000n }
+    const data = routerIface().encodeFunctionData(
+      "swapExactETHForTokensSupportingFeeOnTransferTokens",
+      [0n, path, window.JiebeiWallet.address, deadline]
     );
+    const tx = await sendTx({ to: CFG.PANCAKE_ROUTER, data, value: valWei, gasLimit: 1_200_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("代币到账 ✓ 滚动到下方确认履约", "ok", 4500);
@@ -810,8 +857,8 @@ async function doRepay() {
   if (amount === 0n) { toast("无借款", "err"); return; }
   const t = toast(`还款 ${fmt(amount)} BNB 中，请在钱包确认…`, "loading", 0);
   try {
-    // Pin gasLimit to skip ethers v6 estimation (TP compatibility)
-    const tx = await vaultRW.repayAndUnstake({ value: amount, gasLimit: 1_500_000n });
+    const data = vaultRO.interface.encodeFunctionData("repayAndUnstake", []);
+    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, value: amount, gasLimit: 1_500_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("还款成功 ✓ 抵押已返回钱包", "ok", 5000);
