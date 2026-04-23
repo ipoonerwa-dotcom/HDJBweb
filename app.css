@@ -403,6 +403,179 @@
   box-shadow: 0 0 8px currentColor;
 }
 
+/* ─────────────── Inline Quick Swap (Step 2) ─────────────── */
+
+.swap-panel {
+  background: rgba(10,2,3,0.5);
+  border: 1px solid rgba(229,184,58,0.25);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.swap-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.swap-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--gold-2);
+  font-weight: 700;
+  padding: 3px 9px;
+  border: 1px solid rgba(229,184,58,0.4);
+  border-radius: 4px;
+}
+.swap-hint {
+  font-size: 11px;
+  color: var(--text-fade);
+}
+
+.swap-row {
+  background: rgba(20,4,6,0.6);
+  border: 1px solid rgba(244,241,236,0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color .2s;
+}
+.swap-row:focus-within { border-color: rgba(229,184,58,0.5); }
+.swap-label {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--text-fade);
+  margin-bottom: 8px;
+}
+.swap-input-wrap, .swap-output-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.swap-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--chrome-1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+.swap-input-wrap input::placeholder { color: var(--text-fade); }
+.swap-output-wrap #expectedFlap {
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  word-break: break-all;
+}
+.swap-unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.swap-subhint {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--text-fade);
+}
+.swap-arrow {
+  text-align: center;
+  color: var(--gold-2);
+  font-size: 20px;
+  margin: 8px 0;
+  opacity: 0.8;
+}
+.swap-required {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  padding: 10px 12px;
+  margin: 12px 0;
+  background: rgba(10,2,3,0.5);
+  border-left: 2px solid var(--gold-3);
+  border-radius: 0 4px 4px 0;
+}
+.swap-required b { color: var(--gold-1); font-weight: 700; }
+.swap-required.ok { border-left-color: var(--emerald); }
+.swap-required.ok #swapCheck { color: var(--emerald); font-weight: 700; }
+.swap-required.short { border-left-color: var(--danger); }
+.swap-required.short #swapCheck { color: var(--danger); font-weight: 700; }
+
+.swap-err {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(255,61,87,0.1);
+  border: 1px solid rgba(255,61,87,0.4);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.dex-alt {
+  margin: 10px 0 0;
+  background: rgba(10,2,3,0.35);
+  border: 1px solid rgba(229,184,58,0.15);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dex-alt summary {
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-fade);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  user-select: none;
+  list-style: none;
+}
+.dex-alt summary::-webkit-details-marker { display: none; }
+.dex-alt summary:hover { color: var(--gold-1); }
+.dex-alt[open] summary { border-bottom: 1px dashed rgba(229,184,58,0.15); }
+.dex-alt-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px;
+}
+.dex-alt-grid a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  background: rgba(26,4,6,0.6);
+  border: 1px solid rgba(229,184,58,0.2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all .2s;
+}
+.dex-alt-grid a:hover { border-color: var(--gold-2); color: var(--gold-1); }
+
+@media (max-width: 420px) {
+  .dex-alt-grid { grid-template-columns: repeat(2, 1fr); }
+  .swap-input-wrap input { font-size: 18px; }
+  .swap-output-wrap #expectedFlap { font-size: 17px; }
+}
+
 /* ─────────────── Repay row ─────────────── */
 
 .repay-row {

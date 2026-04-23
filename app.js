@@ -97,8 +97,11 @@ const state = {
   sUser: 0n, borrowed: 0n, borrowTime: 0n, remainingTime: 0n, requiredFlap: 0n,
   sTotal: 0n, bmax: 0n, lendingActive: false, poolAddr: ZeroAddress,
   vaultBnb: 0n, price: 0n, priceSrc: "—", poolState: 255,
-  balance: 0n, allowance: 0n, symbol: "蝴蝶借呗", serviceFeeBps: 300n, verificationWindow: 300n
+  balance: 0n, allowance: 0n, symbol: "蝴蝶借呗", serviceFeeBps: 300n, verificationWindow: 300n,
+  reserves: null, token0: null
 };
+
+let routerRW = null;
 
 function ensureReadonly() {
   if (!readonlyProvider) {
@@ -134,12 +137,13 @@ async function initReadonly() {
 
 function setupWriteContracts() {
   const w = window.JiebeiWallet;
-  if (!w || !w.activeProvider || !w.address) { vaultRW = tokenRW = null; ethersProvider = null; return; }
+  if (!w || !w.activeProvider || !w.address) { vaultRW = tokenRW = routerRW = null; ethersProvider = null; return; }
   ethersProvider = new BrowserProvider(w.activeProvider, CFG.CHAIN_ID);
   ethersProvider.getSigner().then(signer => {
     vaultRW = new Contract(CFG.VAULT_ADDRESS, ABI.VAULT, signer);
     tokenRW = new Contract(CFG.TOKEN_ADDRESS, ABI.ERC20, signer);
-  }).catch(() => { vaultRW = tokenRW = null; });
+    routerRW = new Contract(CFG.PANCAKE_ROUTER, ABI.ROUTER, signer);
+  }).catch(() => { vaultRW = tokenRW = routerRW = null; });
 }
 
 /* ─────────── Refresh loop ─────────── */
@@ -181,6 +185,18 @@ async function refresh() {
       const [oracle, twap] = await Promise.all([vaultRO.getOraclePrice(), vaultRO.getTwapPrice()]);
       state.priceSrc = oracle > 0n ? "Portal" : (twap > 0n ? "TWAP" : "—");
     } catch {}
+
+    // Read pair reserves for local swap amount-out calc
+    if (poolAddr && poolAddr !== ZeroAddress) {
+      try {
+        const pairRO = new Contract(poolAddr, ABI.PAIR, readonlyProvider);
+        const [r, t0] = await Promise.all([pairRO.getReserves(), pairRO.token0()]);
+        state.reserves = [r[0], r[1]];
+        state.token0 = t0;
+      } catch { state.reserves = null; }
+    } else {
+      state.reserves = null;
+    }
   } catch (e) {
     console.warn("[refresh] failed:", e);
   }
@@ -407,14 +423,17 @@ function updateStep1Controls() {
   }
 }
 
-/* Step 2 — user acts on DEX; update pancake URL */
+/* Step 2 — inline quick swap + external DEX links */
 function updateStep2Controls() {
   const pancake = `${CFG.PANCAKE_SWAP}?outputCurrency=${CFG.TOKEN_ADDRESS}&inputCurrency=BNB`;
-  $("pancakeBtn").href = pancake;
-  $("gmgnBtn").href = `https://www.gmgn.cc/bsc/token/${CFG.TOKEN_ADDRESS}`;
+  if ($("pancakeBtn")) $("pancakeBtn").href = pancake;
+  if ($("gmgnBtn"))    $("gmgnBtn").href = `https://www.gmgn.cc/bsc/token/${CFG.TOKEN_ADDRESS}`;
+  if ($("aveBtn"))     $("aveBtn").href = `https://ave.ai/token/${CFG.TOKEN_ADDRESS}-bsc`;
+  if ($("okxBtn"))     $("okxBtn").href = `https://www.okx.com/web3/dex-swap#inputChain=56&inputCurrency=BNB&outputCurrency=${CFG.TOKEN_ADDRESS}`;
 
-  // Confirm button enabled if user now has required flap
-  const gained = state.balance; // user's current token balance; actual check is vs snapshot (contract-side)
+  prefillSwapBnb();
+  updateSwapPreview();
+
   $("confirmBtn").disabled = false;
 }
 
@@ -485,6 +504,74 @@ function scrollToActiveStep() {
       window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     }
   });
+}
+
+function scrollToElement(id, offset = 80) {
+  const el = $(id);
+  if (!el) return;
+  const y = el.getBoundingClientRect().top + window.scrollY - offset;
+  window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+}
+
+/* ─────────── Quick-swap math (PancakeSwap V2 + 3% buy-tax on token) ─────────── */
+
+// amountOut = (amountIn * 9975 * reserveOut) / (reserveIn * 10000 + amountIn * 9975)
+function getAmountOut(amountIn, reserveIn, reserveOut) {
+  if (!amountIn || !reserveIn || !reserveOut) return 0n;
+  const amountInWithFee = amountIn * 9975n;
+  const numerator = amountInWithFee * reserveOut;
+  const denominator = reserveIn * 10000n + amountInWithFee;
+  return denominator === 0n ? 0n : numerator / denominator;
+}
+
+function estimateFlapOut(bnbWei) {
+  if (!state.reserves || !state.token0 || bnbWei <= 0n) return null;
+  const flapIsToken0 = state.token0.toLowerCase() === CFG.TOKEN_ADDRESS.toLowerCase();
+  const reserveBnb  = flapIsToken0 ? state.reserves[1] : state.reserves[0];
+  const reserveFlap = flapIsToken0 ? state.reserves[0] : state.reserves[1];
+  if (reserveBnb === 0n || reserveFlap === 0n) return null;
+  const gross = getAmountOut(bnbWei, reserveBnb, reserveFlap);
+  // Token has 3% buy-tax on DEX swaps; user receives 97%
+  return (gross * 97n) / 100n;
+}
+
+function updateSwapPreview() {
+  const input = $("swapBnb");
+  const out = $("expectedFlap");
+  const req = $("swapRequired");
+  const check = $("swapCheck");
+  const reqLabel = $("requireDisplay3");
+  if (!input || !out || !req || !check) return;
+
+  const val = parseFloat(input.value || "0");
+  let net = null;
+  try { if (val > 0) net = estimateFlapOut(parseUnits(input.value || "0", 18)); } catch {}
+
+  out.textContent = net ? fmt(net, decimals) : "—";
+  if (reqLabel) reqLabel.textContent = fmt(state.requiredFlap, decimals);
+
+  req.classList.remove("ok", "short");
+  if (!net || state.requiredFlap === 0n) {
+    check.textContent = "—";
+  } else if (net >= state.requiredFlap) {
+    check.textContent = "✓ 充足";
+    req.classList.add("ok");
+  } else {
+    check.textContent = "✗ 不足，请增加 BNB";
+    req.classList.add("short");
+  }
+}
+
+function prefillSwapBnb() {
+  const input = $("swapBnb");
+  if (!input) return;
+  if (input.value && parseFloat(input.value) > 0) return;
+  // Recommend borrow × 1.5 (ample buffer to pass requiredFlap)
+  if (state.borrowed > 0n) {
+    const recommended = (state.borrowed * 150n) / 100n;
+    input.value = formatUnits(recommended, 18);
+    updateSwapPreview();
+  }
 }
 
 /* ─────────── Write actions ─────────── */
@@ -563,6 +650,39 @@ async function doConfirmBuy() {
   }
 }
 
+async function doQuickSwap() {
+  if (!(await ensureWritable())) return;
+  const input = $("swapBnb");
+  const errBox = $("swapErr");
+  errBox.hidden = true; errBox.textContent = "";
+  const raw = input.value || "0";
+  let valWei;
+  try { valWei = parseUnits(raw, 18); } catch { toast("请输入有效 BNB 数量", "err"); return; }
+  if (valWei <= 0n) { toast("请输入 BNB 数量", "err"); return; }
+
+  const t = toast("提交 swap 中，请在钱包确认…", "loading", 0);
+  try {
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+    const path = [CFG.WBNB, CFG.TOKEN_ADDRESS];
+    // amountOutMin: 0 (we already pre-fill with 1.5× buffer; router's FOT variant tolerates slippage)
+    const tx = await routerRW.swapExactETHForTokensSupportingFeeOnTransferTokens(
+      0n, path, window.JiebeiWallet.address, deadline, { value: valWei }
+    );
+    t.update("交易已提交，等待上链…", "loading");
+    await tx.wait();
+    t.update("代币到账 ✓ 滚动到下方确认履约", "ok", 4500);
+    await refresh();
+    // Auto-scroll to Step 3 confirm button — this is the whole point of the feature
+    setTimeout(() => scrollToElement("step3", 70), 300);
+  } catch (e) {
+    const msg = translateError(e);
+    errBox.textContent = msg;
+    errBox.hidden = false;
+    t.update(msg, "err");
+    setTimeout(() => t.close(), 5000);
+  }
+}
+
 async function doRepay() {
   if (!(await ensureWritable())) return;
   const amount = state.borrowed;
@@ -587,6 +707,7 @@ function wireEvents() {
   $("stakeBtn")?.addEventListener("click", doStakeAndBorrow);
   $("confirmBtn")?.addEventListener("click", doConfirmBuy);
   $("repayBtn")?.addEventListener("click", doRepay);
+  $("quickSwapBtn")?.addEventListener("click", doQuickSwap);
 
   $("stakeInput")?.addEventListener("input", updateStep1Controls);
   $("maxBtn")?.addEventListener("click", () => {
@@ -594,6 +715,8 @@ function wireEvents() {
     $("stakeInput").value = formatUnits(state.balance, decimals);
     updateStep1Controls();
   });
+
+  $("swapBnb")?.addEventListener("input", updateSwapPreview);
 
   window.addEventListener("wallet-change", (e) => {
     userAddress = (e.detail && e.detail.address) || null;

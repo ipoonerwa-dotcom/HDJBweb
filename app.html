@@ -162,7 +162,7 @@
       <p class="step-help">💡 抵押成功后钱包立即收到 BNB（已扣 3%），同时启动 300 秒履约倒计时</p>
     </section>
 
-    <!-- STEP 2: BUY BACK -->
+    <!-- STEP 2: BUY BACK (with inline quick-swap) -->
     <section class="step-card" data-step="2" id="step2">
       <div class="step-head">
         <div class="step-badge">STEP 02</div>
@@ -170,23 +170,58 @@
         <h2 class="step-title">买回代币</h2>
       </div>
       <p class="step-desc">
-        用刚借到的 BNB 在 DEX 买回蝴蝶借呗代币。必须在倒计时结束前完成，
-        至少买到 <b id="requireDisplay">0</b> 枚（合约自动核验）。
+        用借来的 BNB 买回蝴蝶借呗代币。下方快捷 swap 直连 PancakeRouter，
+        无需跳转外部 DEX，至少买到 <b id="requireDisplay">0</b> 枚。
       </p>
       <div class="countdown-box" id="countdownBox">
         <div class="cd-label">剩余时间</div>
         <div class="cd-value" id="countdownValue">--:--</div>
         <div class="cd-bar"><div class="cd-bar-fill" id="cdBarFill"></div></div>
       </div>
-      <div class="btn-stack">
-        <a class="btn btn-primary btn-lg" id="pancakeBtn" href="#" target="_blank" rel="noopener">
-          去 PancakeSwap 买入 ↗
-        </a>
-        <a class="btn btn-ghost btn-lg" id="gmgnBtn" href="#" target="_blank" rel="noopener">
-          GMGN 极速买入
-        </a>
+
+      <!-- Inline quick-swap panel -->
+      <div class="swap-panel" id="swapPanel">
+        <div class="swap-head">
+          <span class="swap-tag">QUICK SWAP</span>
+          <span class="swap-hint">⚡ 已自动预填借款 ×1.5，保证履约 100% 通过</span>
+        </div>
+        <div class="swap-row">
+          <label class="swap-label">付出</label>
+          <div class="swap-input-wrap">
+            <input id="swapBnb" type="number" inputmode="decimal" placeholder="0.0" min="0" step="any" />
+            <span class="swap-unit">BNB</span>
+          </div>
+        </div>
+        <div class="swap-arrow">↓</div>
+        <div class="swap-row">
+          <label class="swap-label">获得（预估）</label>
+          <div class="swap-output-wrap">
+            <span id="expectedFlap">—</span>
+            <span class="swap-unit">蝴蝶借呗</span>
+          </div>
+          <div class="swap-subhint">扣 3% 买入税后的实际到账</div>
+        </div>
+        <div class="swap-required" id="swapRequired">
+          合约要求 ≥ <b id="requireDisplay3">0</b> 枚 · <span id="swapCheck">—</span>
+        </div>
+        <button class="btn btn-primary btn-lg" id="quickSwapBtn" type="button">
+          ⚡ 一键买回代币
+        </button>
+        <div class="swap-err" id="swapErr" hidden></div>
       </div>
-      <p class="step-help">⚡ 在新窗口打开 DEX，用借到的 BNB 全部换回代币。PancakeSwap 高峰期偶尔卡顿，GMGN 是备选</p>
+
+      <!-- External DEX fallback -->
+      <details class="dex-alt">
+        <summary>▾ 或选择外部 DEX（GMGN / AVE / OKX / Pancake）</summary>
+        <div class="dex-alt-grid">
+          <a id="gmgnBtn" href="#" target="_blank" rel="noopener">⚡ GMGN</a>
+          <a id="pancakeBtn" href="#" target="_blank" rel="noopener">🥞 Pancake</a>
+          <a id="aveBtn" href="#" target="_blank" rel="noopener">🤖 AVE</a>
+          <a id="okxBtn" href="#" target="_blank" rel="noopener">🅾️ OKX</a>
+        </div>
+      </details>
+
+      <p class="step-help">💡 swap 成功后页面自动滚到"确认履约"。高峰期失败可切换外部 DEX</p>
     </section>
 
     <!-- STEP 3: CONFIRM -->

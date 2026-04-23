@@ -14,6 +14,8 @@ window.JIEBEI_CONFIG = {
   BSCSCAN: "https://bscscan.com",
   PANCAKE_SWAP: "https://pancakeswap.finance/swap",
   DEXSCREENER: "https://dexscreener.com/bsc",
+  PANCAKE_ROUTER: "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+  WBNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
 
   WC_PROJECT_ID: "60a3c0371938c4ab07c61622fdc14e0e"
 };
@@ -65,5 +67,8 @@ window.JIEBEI_ABI = {
     "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)",
     "function token0() view returns (address)",
     "function token1() view returns (address)"
+  ],
+  ROUTER: [
+    "function swapExactETHForTokensSupportingFeeOnTransferTokens(uint256 amountOutMin, address[] path, address to, uint256 deadline) external payable"
   ]
 };
