@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jiebei-site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "-d", "C:/Users/ASUS/Desktop/butterfly-jiebei-site"],
+      "port": 8765
+    }
+  ]
+}

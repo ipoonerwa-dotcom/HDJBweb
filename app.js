@@ -242,6 +242,34 @@ function render() {
 
   renderStateMachine();
   renderCountdown();
+  renderCards();
+}
+
+/* ─────────── Step/Position card visibility (state-driven) ─────────── */
+
+function renderCards() {
+  const wallet = window.JiebeiWallet || {};
+  const connected = !!wallet.address;
+  const wrongChain = connected && wallet.chainId && wallet.chainId !== CFG.CHAIN_ID;
+  const lendingOff = !state.lendingActive;
+
+  const hasLoan = state.borrowed > 0n;
+  const inWindow = state.borrowTime > 0n;
+  const timedOut = inWindow && state.remainingTime === 0n;
+
+  const show = (sel, ok) => {
+    const el = typeof sel === "string" ? document.querySelector(sel) : sel;
+    if (el) el.hidden = !ok;
+  };
+
+  // Hide everything if blocker is active
+  const blocked = !connected || wrongChain || lendingOff;
+
+  show("#positionCard", connected && !wrongChain && (hasLoan || inWindow));
+  show('[data-step="1"]', !blocked && !hasLoan);
+  show('[data-step="2"]', !blocked && inWindow);
+  show('[data-step="3"]', !blocked && inWindow);
+  show('[data-step="4"]', !blocked && hasLoan && !inWindow);
 }
 
 /* ─────────── State machine ─────────── */
@@ -333,22 +361,13 @@ function renderStateMachine() {
 }
 
 function setStep(n) {
+  // Visibility is handled by renderCards() via [hidden]; here we just
+  // stamp an `active` class on the relevant card(s) for the gold scan line.
   for (let i = 1; i <= 4; i++) {
     const card = document.querySelector(`[data-step="${i}"]`);
     if (!card) continue;
     card.classList.remove("active", "inactive", "complete");
-    if (n === null) {
-      card.classList.add("inactive");
-      continue;
-    }
-    if (i === n) card.classList.add("active");
-    else if (i < n) card.classList.add("complete");
-    else card.classList.add("inactive");
-  }
-  // Special: step 3 shares card with step 2 in active state if in window
-  if (n === 2) {
-    const step3 = document.querySelector('[data-step="3"]');
-    if (step3) { step3.classList.remove("inactive"); step3.classList.add("active"); }
+    if (n === i || (n === 2 && i === 3)) card.classList.add("active");
   }
 }
 
@@ -454,6 +473,20 @@ function renderCountdown() {
   }
 }
 
+/* ─────────── UX helpers ─────────── */
+
+const IS_MOBILE_VP = () => matchMedia("(max-width: 760px)").matches;
+
+function scrollToActiveStep() {
+  requestAnimationFrame(() => {
+    const first = document.querySelector('.step-card:not([hidden])');
+    if (first) {
+      const y = first.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    }
+  });
+}
+
 /* ─────────── Write actions ─────────── */
 
 async function ensureWritable() {
@@ -507,6 +540,7 @@ async function doStakeAndBorrow() {
     t.update("抵押成功，BNB 已到账 ✓ 300 秒内完成买回", "ok", 6000);
     $("stakeInput").value = "";
     await refresh();
+    if (IS_MOBILE_VP()) scrollToActiveStep();
   } catch (e) {
     t.update(translateError(e), "err");
     setTimeout(() => t.close(), 5000);
@@ -522,6 +556,7 @@ async function doConfirmBuy() {
     await tx.wait();
     t.update("履约成功 ✓ 可随时还款解锁抵押", "ok", 5000);
     await refresh();
+    if (IS_MOBILE_VP()) scrollToActiveStep();
   } catch (e) {
     t.update(translateError(e), "err");
     setTimeout(() => t.close(), 5000);
