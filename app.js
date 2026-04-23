@@ -228,8 +228,15 @@ function startRefresh() {
 /* ─────────── Render ─────────── */
 
 function poolStateText(s) {
-  // FLAP token states (rough): 0=bonding, 1=migrating, 2=antifarmer, 3=live, 255=unknown
-  const map = { 0: "内盘中 Bonding", 1: "迁移中", 2: "抗机器人", 3: "已毕业 Live" };
+  // FLAP token states. We collapse 2 (antiFarmer) and 3 (live) into a single
+  // user-facing "正常交易" label — both states are functionally identical
+  // for borrowers since FLAP's quoter fix, and "antiFarmer" sounds alarming.
+  const map = {
+    0: "内盘中 Bonding",
+    1: "迁移中 Migrating",
+    2: "正常交易 Active",
+    3: "正常交易 Active"
+  };
   return map[s] || "—";
 }
 
