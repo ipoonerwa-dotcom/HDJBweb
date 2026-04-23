@@ -575,6 +575,26 @@ const walletState = {
   activeProvider: null
 };
 window.JiebeiWallet = walletState;
+
+/* Normalize any chainId representation to a plain JS number.
+   Different wallets return different shapes from eth_chainId / chainChanged:
+     MetaMask   → "0x38"      (hex string)
+     OKX/some   → 56          (decimal number)
+     WalletConnect → 56       (number) or "0x38" (hex) depending on version
+     Ethers v6 bigint         → 56n
+   parseInt(56, 16) silently yields 86 — source of phantom "wrong chain" toasts. */
+function normalizeChainId(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "bigint") return Number(raw);
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    return s.startsWith("0x") || s.startsWith("0X") ? parseInt(s, 16) : parseInt(s, 10);
+  }
+  return Number(raw);
+}
+window.JiebeiNormalizeChainId = normalizeChainId;
+
 function emitWalletChange() {
   window.dispatchEvent(new CustomEvent("wallet-change", { detail: { address: walletState.address, chainId: walletState.chainId, kind: walletState.kind } }));
 }
@@ -642,7 +662,7 @@ function bindProviderEvents(provider) {
     closeWalletMenu();
   });
   provider.on("chainChanged", (cid) => {
-    walletState.chainId = typeof cid === "string" ? parseInt(cid, 16) : Number(cid);
+    walletState.chainId = normalizeChainId(cid);
     renderWallet();
     emitWalletChange();
   });
@@ -659,7 +679,7 @@ async function connectInjected() {
   walletState.activeProvider = window.ethereum;
   try {
     const cid = await window.ethereum.request({ method: "eth_chainId" });
-    walletState.chainId = parseInt(cid, 16);
+    walletState.chainId = normalizeChainId(cid);
   } catch {}
   bindProviderEvents(window.ethereum);
   localStorage.setItem("wallet-kind", "injected");
@@ -826,8 +846,9 @@ function openWalletMenu() {
     });
     window.ethereum.on("chainChanged", (cid) => {
       if (walletState.kind !== "injected") return;
-      walletState.chainId = parseInt(cid, 16);
+      walletState.chainId = normalizeChainId(cid);
       renderWallet();
+      emitWalletChange();
     });
   }
 })();
@@ -845,7 +866,7 @@ function openWalletMenu() {
         walletState.activeProvider = window.ethereum;
         try {
           const cid = await window.ethereum.request({ method: "eth_chainId" });
-          walletState.chainId = parseInt(cid, 16);
+          walletState.chainId = normalizeChainId(cid);
         } catch {}
         bindProviderEvents(window.ethereum);
         renderWallet();

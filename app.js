@@ -279,7 +279,8 @@ function render() {
 function renderCards() {
   const wallet = window.JiebeiWallet || {};
   const connected = !!wallet.address;
-  const wrongChain = connected && wallet.chainId && wallet.chainId !== CFG.CHAIN_ID;
+  const cid = wallet.chainId != null ? Number(wallet.chainId) : null;
+  const wrongChain = connected && cid != null && cid !== CFG.CHAIN_ID;
   const lendingOff = !state.lendingActive;
 
   const hasLoan = state.borrowed > 0n;
@@ -329,7 +330,8 @@ function renderStateMachine() {
 
   const wallet = window.JiebeiWallet || {};
   const connected = !!wallet.address;
-  const wrongChain = connected && wallet.chainId && wallet.chainId !== CFG.CHAIN_ID;
+  const cid = wallet.chainId != null ? Number(wallet.chainId) : null;
+  const wrongChain = connected && cid != null && cid !== CFG.CHAIN_ID;
 
   // Phase: no-wallet
   if (!connected) {
@@ -654,17 +656,47 @@ function prefillSwapBnb() {
 
 /* ─────────── Write actions ─────────── */
 
+async function getLiveChainId() {
+  const w = window.JiebeiWallet;
+  if (!w || !w.activeProvider) return null;
+  try {
+    const raw = await w.activeProvider.request({ method: "eth_chainId" });
+    const n = window.JiebeiNormalizeChainId ? window.JiebeiNormalizeChainId(raw) : Number(raw);
+    if (Number.isFinite(n)) { w.chainId = n; return n; }
+  } catch {}
+  return w.chainId != null ? Number(w.chainId) : null;
+}
+
 async function ensureWritable() {
   const w = window.JiebeiWallet;
   if (!w || !w.address) { toast("请先连接钱包", "err"); return false; }
-  if (w.chainId !== CFG.CHAIN_ID) {
+
+  // Live-fetch chainId — never trust the cached value for the switch decision.
+  // Fixes phantom "wrong chain" on wallets that return numeric chainId.
+  const live = await getLiveChainId();
+  if (live !== CFG.CHAIN_ID) {
+    const t = toast("正在切换到 BNB Chain…", "loading", 0);
     try {
-      await w.activeProvider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CFG.CHAIN_ID_HEX }] });
-    } catch { toast("请先切换到 BNB Chain", "err"); return false; }
+      await w.activeProvider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: CFG.CHAIN_ID_HEX }]
+      });
+      // Verify it actually switched
+      const after = await getLiveChainId();
+      if (after !== CFG.CHAIN_ID) {
+        t.update("请在钱包里手动切到 BNB Chain 再重试", "err", 4000);
+        return false;
+      }
+      t.update("已切到 BNB Chain ✓", "ok", 1500);
+    } catch (e) {
+      t.update("切换被取消或失败", "err", 3500);
+      return false;
+    }
   }
+
   if (!vaultRW || !tokenRW) {
     setupWriteContracts();
-    await new Promise(r => setTimeout(r, 120));
+    await new Promise(r => setTimeout(r, 150));
   }
   return !!(vaultRW && tokenRW);
 }
