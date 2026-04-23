@@ -357,6 +357,8 @@
   gap: 8px;
 }
 .input-meta b { color: var(--gold-1); font-weight: 700; }
+.input-meta b.warn { color: var(--danger); }
+.input-meta .min-hint { line-height: 1.45; }
 
 /* ─────────────── Button stack ─────────────── */
 

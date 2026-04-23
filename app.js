@@ -75,7 +75,8 @@ function translateError(e) {
   if (/verification timeout|履约已超时/i.test(msg)) return "300 秒履约窗口已过期";
   if (/hard floor|硬地板/i.test(msg)) return "金库 BNB 不足，无法借出当前金额";
   if (/no borrowable|lending not active|借贷未激活/i.test(msg)) return "借贷暂未激活（代币可能还在内盘阶段）";
-  if (/below minimum borrow|最小借款/i.test(msg)) return "借款额低于最小门槛，请增加抵押";
+  if (/below minimum borrow|最小借款/i.test(msg)) return "借款额低于 0.01 BNB 门槛，请增加抵押数量";
+  if (/missing revert data/i.test(msg)) return "交易被合约拒绝（常见原因：抵押太少导致借款低于 0.01 BNB 门槛；或金库余额不足）";
   if (/wrong repay amount|还款金额错误/i.test(msg)) return "还款金额必须等于借款原值";
   if (/must confirmBuy first|确认履约/i.test(msg)) return "请先点确认履约";
   return msg.length > 180 ? msg.slice(0, 180) + "…" : msg;
@@ -98,8 +99,13 @@ const state = {
   sTotal: 0n, bmax: 0n, lendingActive: false, poolAddr: ZeroAddress,
   vaultBnb: 0n, price: 0n, priceSrc: "—", poolState: 255,
   balance: 0n, allowance: 0n, symbol: "蝴蝶借呗", serviceFeeBps: 300n, verificationWindow: 300n,
-  reserves: null, token0: null
+  reserves: null, token0: null,
+  hardFloor: 0n, safetyReserveBps: 2000n, kBps: 8000n, singleCapBps: 1000n, collateralCapBps: 3000n
 };
+
+// Mirror of contract MIN_BORROW_BNB (0.01 BNB) + BPS
+const MIN_BORROW_WEI = 10_000_000_000_000_000n; // 0.01 ether
+const BPS = 10000n;
 
 let routerRW = null;
 
@@ -155,7 +161,8 @@ async function refresh() {
     const [
       sUser, borrowed, borrowTime, remainingTime, requiredFlap,
       bmax, sTotal, lendingActive, poolAddr, price, poolState,
-      balance, allowance, vaultBnb, serviceFeeBps, verificationWindow
+      balance, allowance, vaultBnb, serviceFeeBps, verificationWindow,
+      hardFloor, safetyReserveBps, kBps, singleCapBps, collateralCapBps
     ] = await Promise.all([
       vaultRO.S_user(addr),
       vaultRO.borrowed(addr),
@@ -172,12 +179,18 @@ async function refresh() {
       addr !== ZeroAddress ? tokenRO.allowance(addr, CFG.VAULT_ADDRESS) : Promise.resolve(0n),
       readonlyProvider.getBalance(CFG.VAULT_ADDRESS),
       vaultRO.serviceFeeBps(),
-      vaultRO.verificationWindow()
+      vaultRO.verificationWindow(),
+      vaultRO.hardFloorBnb(),
+      vaultRO.safetyReserveBps(),
+      vaultRO.kBps(),
+      vaultRO.singleCapBps(),
+      vaultRO.collateralCapBps()
     ]);
     Object.assign(state, {
       sUser, borrowed, borrowTime, remainingTime, requiredFlap,
       bmax, sTotal, lendingActive, poolAddr, price, poolState: Number(poolState),
-      balance, allowance, vaultBnb, serviceFeeBps, verificationWindow
+      balance, allowance, vaultBnb, serviceFeeBps, verificationWindow,
+      hardFloor, safetyReserveBps, kBps, singleCapBps, collateralCapBps
     });
 
     // Determine price source
@@ -393,33 +406,98 @@ function disableAll() {
   });
 }
 
+/* ─────────── Projected B_max (local mirror of _computeBMax) ─────────── */
+
+function projectBMax(extraStakeWei) {
+  if (state.vaultBnb <= state.hardFloor) return 0n;
+  const effectiveVault = state.vaultBnb - state.hardFloor;
+  const sUserNew = state.sUser + extraStakeWei;
+  if (sUserNew === 0n) return 0n;
+  const sTotalNew = state.sTotal + extraStakeWei;
+  if (sTotalNew === 0n) return 0n;
+
+  const tAvail = (effectiveVault * (BPS - state.safetyReserveBps)) / BPS;
+  const relCap = (tAvail * sUserNew * state.kBps) / (sTotalNew * BPS);
+  const absCap = (effectiveVault * state.singleCapBps) / BPS;
+  if (state.price === 0n) return 0n;
+  const collateralValue = (sUserNew * state.price) / 1_000_000_000_000_000_000n;
+  const collateralCap = (collateralValue * state.collateralCapBps) / BPS;
+
+  let m = relCap < absCap ? relCap : absCap;
+  if (collateralCap < m) m = collateralCap;
+  return m;
+}
+
+// Reverse-solve the minimum stake needed so that bmax >= MIN_BORROW_WEI.
+// The three caps are independent lower bounds — so we need stake that
+// satisfies ALL three. Typically collateralCap is the binding constraint
+// (since the token is cheap). Returns stake in wei (18 decimals).
+function minStakeForMinBorrow() {
+  if (state.price === 0n) return 0n;
+  // collateralCap >= MIN_BORROW → sUser * price * collateralCapBps / (1e18 * BPS) >= MIN_BORROW
+  //   → sUser >= MIN_BORROW * 1e18 * BPS / (price * collateralCapBps)
+  const ONE = 1_000_000_000_000_000_000n;
+  const byCollateral = (MIN_BORROW_WEI * ONE * BPS + state.price * state.collateralCapBps - 1n) / (state.price * state.collateralCapBps);
+  // Add a small safety margin (+2%)
+  return (byCollateral * 102n) / 100n - state.sUser > 0n ? (byCollateral * 102n) / 100n - state.sUser : 0n;
+}
+
 /* Step 1 — stake & borrow */
 function updateStep1Controls() {
   const input = $("stakeInput");
-  const val = parseFloat(input.value || "0");
-  const wei = val > 0 ? parseUnits(input.value || "0", decimals) : 0n;
   const approveBtn = $("approveBtn");
   const stakeBtn = $("stakeBtn");
+  const preview = $("bmaxPreview");
+  let wei = 0n;
+  try { wei = parseUnits(input.value || "0", decimals); } catch { wei = 0n; }
+
   const hasBalance = state.balance > 0n;
-  const enough = wei > 0n && wei <= state.balance;
+  const enoughBal = wei > 0n && wei <= state.balance;
   const allowed = wei <= state.allowance;
 
-  // Bmax preview
-  if (val > 0 && hasBalance && enough) {
-    const pct = Number(wei) / Number(state.balance || 1n);
-    const preview = state.bmax * wei / (state.sUser + wei || 1n);
-    $("bmaxPreview").textContent = fmt(state.bmax > 0n ? preview : 0n);
+  // Projected borrow if this stake goes through
+  const projected = wei > 0n ? projectBMax(wei) : (state.sUser > 0n ? state.bmax : 0n);
+
+  // Under min-borrow floor?
+  const underMin = wei > 0n && projected < MIN_BORROW_WEI;
+
+  // Display preview text
+  if (wei > 0n && enoughBal) {
+    preview.textContent = fmt(projected) + " BNB";
+    preview.classList.toggle("warn", underMin);
+    if (underMin) {
+      const needExtra = minStakeForMinBorrow();
+      const hintEl = document.querySelector(".input-meta .min-hint") || (() => {
+        const s = document.createElement("span");
+        s.className = "min-hint";
+        s.style.cssText = "display:block;color:var(--danger);font-size:11px;margin-top:4px;";
+        document.querySelector(".input-meta").appendChild(s);
+        return s;
+      })();
+      if (needExtra > 0n) {
+        hintEl.textContent = `⚠ 借款额小于 0.01 BNB 门槛，至少再抵押约 ${fmt(needExtra, decimals, 0)} ${state.symbol}`;
+      } else {
+        hintEl.textContent = `⚠ 借款额小于 0.01 BNB 门槛`;
+      }
+    } else {
+      const h = document.querySelector(".input-meta .min-hint");
+      if (h) h.remove();
+    }
   } else {
-    $("bmaxPreview").textContent = hasBalance ? fmt(state.bmax) + " (持仓)" : "—";
+    preview.textContent = state.sUser > 0n ? fmt(state.bmax) + " BNB（当前仓位）" : "—";
+    preview.classList.remove("warn");
+    const h = document.querySelector(".input-meta .min-hint");
+    if (h) h.remove();
   }
 
-  if (wei > 0n && !allowed) {
+  // Button states
+  if (wei > 0n && !allowed && enoughBal && !underMin) {
     approveBtn.hidden = false;
     approveBtn.disabled = false;
     stakeBtn.disabled = true;
   } else {
     approveBtn.hidden = true;
-    stakeBtn.disabled = !enough;
+    stakeBtn.disabled = !(enoughBal && allowed && !underMin);
   }
 }
 
