@@ -12,7 +12,7 @@ const dict = {
     "nav.upgrade": "升级",
     "nav.security": "安全",
     "nav.roadmap": "路线图",
-    "nav.launch": "进入 App · 毕业后开放",
+    "nav.launch": "进入 App ↗",
 
     "hero.tag": "蝴蝶白条的下一代 · 双层预言机 · 审计加固",
     "hero.title": "蝴蝶借呗",
@@ -117,7 +117,7 @@ const dict = {
     "cta.title": "合约已就绪 · 等你上桌",
     "cta.desc": "审计通过、Factory 已部署并验证。代币内盘发射 → 15.99 BNB 毕业 → DApp 上线撸贷。先买入一手筹码，抢占先机。",
     "cta.b1": "买入代币 🪙",
-    "cta.b2": "DApp · 毕业后开放",
+    "cta.b2": "进入 DApp →",
     "cta.meta1": "BNB Chain",
     "cta.meta2": "合约开源",
     "cta.meta3": "审计通过",
@@ -151,7 +151,7 @@ const dict = {
     "nav.upgrade": "Upgrade",
     "nav.security": "Security",
     "nav.roadmap": "Roadmap",
-    "nav.launch": "App · Post-Graduation",
+    "nav.launch": "Launch App ↗",
 
     "hero.tag": "Next-Gen of Butterfly Baitiao · Two-Layer Oracle · Audit-Hardened",
     "hero.title": "Butterfly Jiebei",
@@ -256,7 +256,7 @@ const dict = {
     "cta.title": "Contracts ready · Claim your seat",
     "cta.desc": "Audit passed. Factory deployed & verified. Token bonding-curve launch → 15.99 BNB graduation → DApp goes live. Grab your bag before the first loop.",
     "cta.b1": "Buy Token 🪙",
-    "cta.b2": "DApp · Post-Graduation",
+    "cta.b2": "Launch DApp →",
     "cta.meta1": "BNB Chain",
     "cta.meta2": "Open Source",
     "cta.meta3": "Audit Passed",
@@ -574,6 +574,10 @@ const walletState = {
   wcProvider: null,
   activeProvider: null
 };
+window.JiebeiWallet = walletState;
+function emitWalletChange() {
+  window.dispatchEvent(new CustomEvent("wallet-change", { detail: { address: walletState.address, chainId: walletState.chainId, kind: walletState.kind } }));
+}
 
 function t(key) {
   const lang = localStorage.getItem("lang") || "zh";
@@ -634,11 +638,13 @@ function bindProviderEvents(provider) {
     if (!accs || !accs[0]) { disconnectWallet(); return; }
     walletState.address = accs[0];
     renderWallet();
+    emitWalletChange();
     closeWalletMenu();
   });
   provider.on("chainChanged", (cid) => {
     walletState.chainId = typeof cid === "string" ? parseInt(cid, 16) : Number(cid);
     renderWallet();
+    emitWalletChange();
   });
   provider.on("disconnect", () => disconnectWallet());
 }
@@ -711,6 +717,7 @@ async function disconnectWallet() {
   walletState.activeProvider = null;
   localStorage.removeItem("wallet-kind");
   renderWallet();
+  emitWalletChange();
   closeWalletMenu();
 }
 
@@ -794,6 +801,7 @@ function openWalletMenu() {
         await connectWalletConnect();
       }
       renderWallet();
+      emitWalletChange();
     } catch (err) {
       console.error("[wallet] connect failed:", err);
       if (err && err.code !== 4001) {
@@ -841,6 +849,7 @@ function openWalletMenu() {
         } catch {}
         bindProviderEvents(window.ethereum);
         renderWallet();
+        emitWalletChange();
       } else {
         localStorage.removeItem("wallet-kind");
       }
@@ -852,6 +861,7 @@ function openWalletMenu() {
         walletState.activeProvider = p;
         walletState.chainId = p.chainId;
         renderWallet();
+        emitWalletChange();
       } else {
         localStorage.removeItem("wallet-kind");
       }

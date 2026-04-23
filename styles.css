@@ -409,12 +409,37 @@ h1,h2,h3,h4 { font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; letter-s
 }
 .wallet-menu-full b { color: var(--gold-1); font-weight: 600; }
 
-@media (max-width: 640px) {
-  .nav-launch { display: none; }
+/* Mobile nav: only brand + lang + wallet; drop the long "进入 App · 毕业后开放" */
+@media (max-width: 900px) {
+  .nav-launch { display: none !important; }
+  .nav-inner { gap: 12px; padding: 0 14px; }
+  .nav-right { gap: 8px; }
+  .btn-wallet {
+    padding: 7px 12px;
+    font-size: 11px;
+    gap: 6px;
+    letter-spacing: 0.02em;
+  }
+  .btn-wallet .wallet-label {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lang-switch { padding: 6px 10px; font-size: 11px; }
+  /* Viewport-safe dropdown (doesn't get clipped when button is near edge) */
+  .wallet-menu {
+    position: fixed;
+    top: calc(var(--nav-h) + 8px) !important;
+    right: 12px;
+    left: auto;
+    min-width: 240px;
+    max-width: calc(100vw - 24px);
+  }
 }
-@media (max-width: 540px) {
-  .btn-wallet { padding: 7px 10px; font-size: 11px; }
-  .btn-wallet .wallet-label { max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 380px) {
+  .brand-en { display: none; }
+  .btn-wallet .wallet-label { max-width: 92px; }
 }
 
 /* ─────────────── Buttons ─────────────── */
@@ -1407,7 +1432,6 @@ h1,h2,h3,h4 { font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; letter-s
   .hero-tiles { grid-template-columns: repeat(2, 1fr); }
   .flow-grid, .sec-grid { grid-template-columns: 1fr; }
   .foot-cols { grid-template-columns: 1fr; gap: 20px; }
-  .nav-links, .lang-switch { display: none; }
   .ascii-banner { font-size: 9px; }
   .tok-bd-row { grid-template-columns: 20px 1fr auto; }
   .tok-bd-row .tok-bar { grid-column: 1/-1; }

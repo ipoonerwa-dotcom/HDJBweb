@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>蝴蝶借呗 DApp · 借贷面板</title>
+<meta name="description" content="蝴蝶借呗借贷面板：抵押代币 · 300 秒履约窗口内买回 · 还款解锁。" />
+<link rel="icon" href="logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+SC:wght@400;700;900&family=Ma+Shan+Zheng&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="app.css" />
+</head>
+<body class="app-body">
+
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-scanline" aria-hidden="true"></div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img class="brand-mark" src="logo.png" alt="蝴蝶借呗" />
+      <span class="brand-text">
+        <span class="brand-cn">蝴蝶借呗</span>
+        <span class="brand-en">BUTTERFLY&nbsp;JIEBEI</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html#mechanism" data-i="nav.mechanism">机制</a>
+      <a href="index.html#tokenomics" data-i="nav.tokenomics">代币</a>
+      <a href="index.html#security" data-i="nav.security">安全</a>
+      <a href="index.html">← 返回首页</a>
+    </div>
+    <div class="nav-right">
+      <button class="lang-switch" id="langSwitch" aria-label="Language">EN</button>
+      <button class="btn-wallet" id="walletBtn" type="button">
+        <span class="wallet-dot"></span>
+        <span class="wallet-label" data-i="wallet.connect">连接钱包</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main class="app-main">
+  <div class="container">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="app-tag">// DAPP · LENDING PANEL</div>
+      <h1 class="app-title">
+        <span class="title-cn">借贷面板</span>
+        <span class="title-en">LENDING · BORROW · REPAY</span>
+      </h1>
+      <p class="app-sub">
+        抵押代币 · 300 秒履约窗口内买回 · 还款解锁抵押。
+        <span class="sub-sep">·</span>
+        0 利息 · 违约则抵押 100% 焚毁。
+      </p>
+    </header>
+
+    <!-- STATE BANNER -->
+    <div class="state-banner" id="stateBanner" hidden>
+      <span class="sb-icon" id="sbIcon">⚠️</span>
+      <div class="sb-text">
+        <div class="sb-title" id="sbTitle"></div>
+        <div class="sb-desc" id="sbDesc"></div>
+      </div>
+      <button class="sb-action" id="sbAction" type="button" hidden></button>
+    </div>
+
+    <!-- LIVE STATS STRIP -->
+    <section class="stats-strip" id="statsStrip">
+      <div class="stat-tile">
+        <div class="st-label">金库 BNB</div>
+        <div class="st-val" id="stVaultBnb">—</div>
+        <div class="st-sub" id="stVaultBnbSub">loading</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">全网抵押</div>
+        <div class="st-val" id="stSTotal">—</div>
+        <div class="st-sub" id="stSTotalSub">$ 蝴蝶借呗</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">当前价</div>
+        <div class="st-val" id="stPrice">—</div>
+        <div class="st-sub" id="stPriceSrc">oracle</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-label">池子状态</div>
+        <div class="st-val" id="stPool">—</div>
+        <div class="st-sub" id="stPoolSub">—</div>
+      </div>
+    </section>
+
+    <!-- POSITION CARD -->
+    <section class="position-card" id="positionCard">
+      <div class="pc-head">
+        <span class="pc-tag">// MY POSITION</span>
+        <span class="pc-status" id="pcStatus">未开仓</span>
+      </div>
+      <div class="pc-grid">
+        <div class="pc-item">
+          <div class="pc-k">抵押中</div>
+          <div class="pc-v" id="pcStake">0.00</div>
+          <div class="pc-u">蝴蝶借呗</div>
+        </div>
+        <div class="pc-item">
+          <div class="pc-k">借款</div>
+          <div class="pc-v" id="pcBorrow">0.00</div>
+          <div class="pc-u">BNB</div>
+        </div>
+        <div class="pc-item">
+          <div class="pc-k">剩余履约</div>
+          <div class="pc-v" id="pcTime">—</div>
+          <div class="pc-u" id="pcTimeSub">秒</div>
+        </div>
+        <div class="pc-item">
+          <div class="pc-k">需买回</div>
+          <div class="pc-v" id="pcReq">0.00</div>
+          <div class="pc-u">蝴蝶借呗</div>
+        </div>
+      </div>
+      <div class="pc-progress" id="pcProgress" hidden>
+        <div class="pc-progress-fill" id="pcProgressFill"></div>
+      </div>
+    </section>
+
+    <!-- STEP 1: STAKE & BORROW -->
+    <section class="step-card" data-step="1" id="step1">
+      <div class="step-head">
+        <div class="step-badge">STEP 01</div>
+        <div class="step-emoji">🪙</div>
+        <h2 class="step-title">抵押 &amp; 借款</h2>
+      </div>
+      <p class="step-desc">
+        输入抵押代币数量，合约自动评估最大可借 BNB（Portal + TWAP 双层预言机）。
+        系统扣 3% 服务费，剩余 BNB 到账你的钱包。
+      </p>
+
+      <div class="input-group">
+        <label class="input-label">抵押数量（蝴蝶借呗）</label>
+        <div class="input-row">
+          <input type="number" class="input" id="stakeInput" placeholder="0.00" min="0" step="any" />
+          <button class="btn-max" id="maxBtn" type="button">MAX</button>
+        </div>
+        <div class="input-meta">
+          <span>钱包余额：<b id="tokenBal">—</b></span>
+          <span>预估可借：<b id="bmaxPreview">—</b> BNB</span>
+        </div>
+      </div>
+
+      <div class="btn-stack">
+        <button class="btn btn-primary btn-lg" id="approveBtn" type="button" hidden>
+          ① 授权代币（首次使用）
+        </button>
+        <button class="btn btn-primary btn-lg" id="stakeBtn" type="button" disabled>
+          一键抵押 &amp; 借款 →
+        </button>
+      </div>
+      <p class="step-help">💡 抵押成功后钱包立即收到 BNB（已扣 3%），同时启动 300 秒履约倒计时</p>
+    </section>
+
+    <!-- STEP 2: BUY BACK -->
+    <section class="step-card" data-step="2" id="step2">
+      <div class="step-head">
+        <div class="step-badge">STEP 02</div>
+        <div class="step-emoji">⚡</div>
+        <h2 class="step-title">买回代币</h2>
+      </div>
+      <p class="step-desc">
+        用刚借到的 BNB 在 DEX 买回蝴蝶借呗代币。必须在倒计时结束前完成，
+        至少买到 <b id="requireDisplay">0</b> 枚（合约自动核验）。
+      </p>
+      <div class="countdown-box" id="countdownBox">
+        <div class="cd-label">剩余时间</div>
+        <div class="cd-value" id="countdownValue">--:--</div>
+        <div class="cd-bar"><div class="cd-bar-fill" id="cdBarFill"></div></div>
+      </div>
+      <div class="btn-stack">
+        <a class="btn btn-primary btn-lg" id="pancakeBtn" href="#" target="_blank" rel="noopener">
+          去 PancakeSwap 买入 ↗
+        </a>
+        <a class="btn btn-ghost btn-lg" id="gmgnBtn" href="#" target="_blank" rel="noopener">
+          GMGN 极速买入
+        </a>
+      </div>
+      <p class="step-help">⚡ 在新窗口打开 DEX，用借到的 BNB 全部换回代币。PancakeSwap 高峰期偶尔卡顿，GMGN 是备选</p>
+    </section>
+
+    <!-- STEP 3: CONFIRM -->
+    <section class="step-card" data-step="3" id="step3">
+      <div class="step-head">
+        <div class="step-badge">STEP 03</div>
+        <div class="step-emoji">✅</div>
+        <h2 class="step-title">确认履约</h2>
+      </div>
+      <p class="step-desc">
+        买完代币后回到这里点确认。合约会自动核验你买够了 <b id="requireDisplay2">0</b> 枚，
+        通过即锁定，不通过则按 Step 2 继续补买。
+      </p>
+      <div class="btn-stack">
+        <button class="btn btn-primary btn-lg" id="confirmBtn" type="button" disabled>
+          ✓ 确认履约
+        </button>
+      </div>
+      <p class="step-help">🎯 履约成功后倒计时停止，可任意时间还款解锁抵押</p>
+    </section>
+
+    <!-- STEP 4: REPAY -->
+    <section class="step-card" data-step="4" id="step4">
+      <div class="step-head">
+        <div class="step-badge">STEP 04</div>
+        <div class="step-emoji">💰</div>
+        <h2 class="step-title">还款 &amp; 解锁</h2>
+      </div>
+      <p class="step-desc">
+        履约成功后随时还款（0 利息），抵押代币 100% 返回钱包，可立即开下一轮。
+      </p>
+      <div class="repay-row">
+        <div class="repay-k">应还金额</div>
+        <div class="repay-v" id="repayAmount">0</div>
+        <div class="repay-u">BNB</div>
+      </div>
+      <div class="btn-stack">
+        <button class="btn btn-primary btn-lg" id="repayBtn" type="button" disabled>
+          💰 还款并取回抵押
+        </button>
+      </div>
+      <p class="step-help">💰 还款后抵押立即回到钱包，无冷却期</p>
+    </section>
+
+    <!-- FOOTER META -->
+    <div class="app-meta">
+      <div class="meta-row">
+        <span class="meta-k">Vault</span>
+        <a class="meta-v" id="vaultAddr" href="#" target="_blank" rel="noopener">0x98f6…CF35</a>
+      </div>
+      <div class="meta-row">
+        <span class="meta-k">Token</span>
+        <a class="meta-v" id="tokenAddr" href="#" target="_blank" rel="noopener">0x1471…7777</a>
+      </div>
+      <div class="meta-row">
+        <span class="meta-k">Network</span>
+        <span class="meta-v">BNB Chain · 56</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Toast root -->
+<div class="toast-root" id="toastRoot" aria-live="polite"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "ethers": "https://esm.sh/ethers@6.13.4"
+  }
+}
+</script>
+<script src="config.js"></script>
+<script src="script.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
