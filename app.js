@@ -368,17 +368,7 @@ function renderStateMachine() {
     return;
   }
 
-  // Anti-farmer gas warning — poolState 2 = FLAP token's anti-bot phase
-  // where every transfer burns absurd amounts of gas (~50M vs normal ~500k).
-  if (state.poolState === 2) {
-    showBanner("err", "⚠️",
-      "抗机器人阶段 · Gas 会异常高",
-      "FLAP 代币当前处于 antiFarmer 状态（poolState=2），每次 transfer 会烧 ~50M gas（费用约 0.003 BNB）。强烈建议等池子进入 state 3（Live）再操作，届时 gas 降回 ~500k 正常水平。",
-      null);
-    // Don't disable — user may still want to proceed if they accept the cost
-  } else {
-    hideBanner();
-  }
+  hideBanner();
 
   // Phase determination
   const hasActive = state.borrowed > 0n;
