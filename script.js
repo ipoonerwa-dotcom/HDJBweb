@@ -133,6 +133,16 @@ const dict = {
     "foot.l5": "审计报告",
     "foot.l6": "GitHub",
     "foot.disclaim": "DYOR · 纯链上算法治理 · 无中心化托管",
+
+    "wallet.connect":    "连接钱包",
+    "wallet.connecting": "连接中...",
+    "wallet.copy":       "复制地址",
+    "wallet.copied":     "已复制 ✓",
+    "wallet.bscscan":    "在 BscScan 查看 ↗",
+    "wallet.switch":     "切换到 BNB Chain",
+    "wallet.disconnect": "断开连接",
+    "wallet.wrongNet":   "⚠️ 非 BSC 网络",
+    "wallet.failed":     "连接失败",
   },
   en: {
     "brand.cn": "Butterfly Jiebei",
@@ -262,6 +272,16 @@ const dict = {
     "foot.l5": "Audit Report",
     "foot.l6": "GitHub",
     "foot.disclaim": "DYOR · Pure on-chain algorithmic governance · Non-custodial",
+
+    "wallet.connect":    "Connect Wallet",
+    "wallet.connecting": "Connecting...",
+    "wallet.copy":       "Copy Address",
+    "wallet.copied":     "Copied ✓",
+    "wallet.bscscan":    "View on BscScan ↗",
+    "wallet.switch":     "Switch to BNB Chain",
+    "wallet.disconnect": "Disconnect",
+    "wallet.wrongNet":   "⚠️ Wrong Network",
+    "wallet.failed":     "Connection failed",
   }
 };
 
@@ -505,22 +525,334 @@ function applyLang(lang) {
 })();
 
 /* ───────────────── Copy contract address to clipboard ───────────────── */
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
 (function initCopy() {
   document.querySelectorAll("[data-copy]").forEach(el => {
     el.addEventListener("click", async () => {
-      const text = el.getAttribute("data-copy");
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand("copy"); } catch {}
-        document.body.removeChild(ta);
-      }
+      await copyToClipboard(el.getAttribute("data-copy"));
       el.classList.add("copied");
       setTimeout(() => el.classList.remove("copied"), 1400);
     });
   });
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
+   WalletConnect v2 + Injected (MetaMask/OKX/TP) with auto-reconnect
+   - Lazy-loads @walletconnect/ethereum-provider on first click
+   - Prefers injected wallet; falls back to QR modal
+   - Auto-switches to BSC (chain 56); adds if missing
+   ═══════════════════════════════════════════════════════════════════ */
+
+const WC_PROJECT_ID = "60a3c0371938c4ab07c61622fdc14e0e";
+const BSC_CHAIN_ID_HEX = "0x38"; // 56
+const BSC_CHAIN_ID_NUM = 56;
+
+const walletState = {
+  address: null,
+  chainId: null,
+  kind: null,        // "injected" | "walletconnect"
+  wcProvider: null,
+  activeProvider: null
+};
+
+function t(key) {
+  const lang = localStorage.getItem("lang") || "zh";
+  return (dict[lang] && dict[lang][key]) || dict.zh[key] || key;
+}
+
+function shortAddr(a) {
+  return a ? a.slice(0, 6) + "…" + a.slice(-4) : "";
+}
+
+function getWalletBtn() { return document.getElementById("walletBtn"); }
+function getWalletLabel() { return document.querySelector("#walletBtn .wallet-label"); }
+
+function renderWallet() {
+  const btn = getWalletBtn();
+  const label = getWalletLabel();
+  if (!btn || !label) return;
+
+  if (walletState.address) {
+    btn.classList.add("connected");
+    btn.classList.remove("loading");
+    label.textContent = shortAddr(walletState.address);
+    btn.setAttribute("data-i", "");
+  } else {
+    btn.classList.remove("connected", "loading");
+    label.textContent = t("wallet.connect");
+    btn.setAttribute("data-i", "wallet.connect");
+  }
+}
+
+async function ensureBSC(provider) {
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: BSC_CHAIN_ID_HEX }]
+    });
+  } catch (e) {
+    if (e && (e.code === 4902 || (e.data && e.data.originalError && e.data.originalError.code === 4902))) {
+      try {
+        await provider.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: BSC_CHAIN_ID_HEX,
+            chainName: "BNB Smart Chain",
+            nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+            rpcUrls: ["https://bsc-dataseed.binance.org/"],
+            blockExplorerUrls: ["https://bscscan.com"]
+          }]
+        });
+      } catch (err) { console.warn("add chain failed:", err); }
+    }
+  }
+}
+
+function bindProviderEvents(provider) {
+  if (!provider || !provider.on) return;
+  provider.on("accountsChanged", (accs) => {
+    if (!accs || !accs[0]) { disconnectWallet(); return; }
+    walletState.address = accs[0];
+    renderWallet();
+    closeWalletMenu();
+  });
+  provider.on("chainChanged", (cid) => {
+    walletState.chainId = typeof cid === "string" ? parseInt(cid, 16) : Number(cid);
+    renderWallet();
+  });
+  provider.on("disconnect", () => disconnectWallet());
+}
+
+async function connectInjected() {
+  if (!window.ethereum || !window.ethereum.request) throw new Error("no injected");
+  const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+  if (!accounts || !accounts[0]) throw new Error("no account");
+  await ensureBSC(window.ethereum);
+  walletState.address = accounts[0];
+  walletState.kind = "injected";
+  walletState.activeProvider = window.ethereum;
+  try {
+    const cid = await window.ethereum.request({ method: "eth_chainId" });
+    walletState.chainId = parseInt(cid, 16);
+  } catch {}
+  bindProviderEvents(window.ethereum);
+  localStorage.setItem("wallet-kind", "injected");
+}
+
+async function getWCProvider() {
+  if (walletState.wcProvider) return walletState.wcProvider;
+  const mod = await import("https://esm.sh/@walletconnect/ethereum-provider@2.17.2?bundle");
+  const EthereumProvider = mod.EthereumProvider || mod.default;
+  const p = await EthereumProvider.init({
+    projectId: WC_PROJECT_ID,
+    chains: [BSC_CHAIN_ID_NUM],
+    optionalChains: [BSC_CHAIN_ID_NUM],
+    showQrModal: true,
+    metadata: {
+      name: "蝴蝶借呗 Butterfly Jiebei",
+      description: "Next-gen of Butterfly Baitiao · Audited",
+      url: location.origin,
+      icons: [location.origin + "/logo.png"]
+    },
+    qrModalOptions: {
+      themeMode: "dark",
+      themeVariables: {
+        "--wcm-accent-color":     "#E5B83A",
+        "--wcm-accent-fill-color":"#1a0406",
+        "--wcm-background-color": "#1A0406"
+      }
+    }
+  });
+  walletState.wcProvider = p;
+  bindProviderEvents(p);
+  return p;
+}
+
+async function connectWalletConnect() {
+  const p = await getWCProvider();
+  if (!p.session) await p.connect();
+  if (!p.accounts || !p.accounts[0]) throw new Error("no account");
+  walletState.address = p.accounts[0];
+  walletState.kind = "walletconnect";
+  walletState.activeProvider = p;
+  walletState.chainId = p.chainId;
+  localStorage.setItem("wallet-kind", "walletconnect");
+}
+
+async function disconnectWallet() {
+  try {
+    if (walletState.wcProvider && walletState.wcProvider.session) {
+      await walletState.wcProvider.disconnect();
+    }
+  } catch {}
+  walletState.address = null;
+  walletState.chainId = null;
+  walletState.kind = null;
+  walletState.activeProvider = null;
+  localStorage.removeItem("wallet-kind");
+  renderWallet();
+  closeWalletMenu();
+}
+
+/* ─── Wallet menu (dropdown under the button) ─── */
+function buildWalletMenu() {
+  const btn = getWalletBtn();
+  if (!btn) return null;
+  let menu = btn.querySelector(".wallet-menu");
+  if (menu) return menu;
+  menu = document.createElement("div");
+  menu.className = "wallet-menu";
+  menu.addEventListener("click", e => e.stopPropagation());
+  btn.appendChild(menu);
+  return menu;
+}
+
+function closeWalletMenu() {
+  const m = document.querySelector(".wallet-menu");
+  if (m) m.classList.remove("open");
+}
+
+function openWalletMenu() {
+  const menu = buildWalletMenu();
+  if (!menu) return;
+  const addr = walletState.address;
+  const wrongNet = walletState.chainId && walletState.chainId !== BSC_CHAIN_ID_NUM;
+  menu.innerHTML = `
+    <div class="wallet-menu-full"><b>${addr}</b></div>
+    ${wrongNet ? `<button class="wallet-menu-item" data-act="switch">🔄 ${t("wallet.switch")}</button>` : ""}
+    <button class="wallet-menu-item" data-act="copy">📋 ${t("wallet.copy")}</button>
+    <a class="wallet-menu-item" href="https://bscscan.com/address/${addr}" target="_blank" rel="noopener">🔍 ${t("wallet.bscscan")}</a>
+    <button class="wallet-menu-item danger" data-act="disconnect">⏻ ${t("wallet.disconnect")}</button>
+  `;
+  menu.classList.add("open");
+
+  menu.querySelectorAll("[data-act]").forEach(el => {
+    el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const act = el.getAttribute("data-act");
+      if (act === "copy") {
+        await copyToClipboard(addr);
+        el.textContent = "✓ " + t("wallet.copied");
+        setTimeout(() => el.textContent = "📋 " + t("wallet.copy"), 1200);
+      } else if (act === "switch") {
+        if (walletState.activeProvider) await ensureBSC(walletState.activeProvider);
+      } else if (act === "disconnect") {
+        await disconnectWallet();
+      }
+    });
+  });
+}
+
+/* ─── Wallet button click handler ─── */
+(function initWalletButton() {
+  const btn = getWalletBtn();
+  if (!btn) return;
+
+  btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (walletState.address) {
+      const menu = btn.querySelector(".wallet-menu");
+      if (menu && menu.classList.contains("open")) closeWalletMenu();
+      else openWalletMenu();
+      return;
+    }
+
+    btn.classList.add("loading");
+    btn.disabled = true;
+    const label = getWalletLabel();
+    if (label) label.textContent = t("wallet.connecting");
+
+    try {
+      if (window.ethereum && window.ethereum.request) {
+        try {
+          await connectInjected();
+        } catch (err) {
+          if (err && err.code === 4001) { throw err; }        // user rejected
+          await connectWalletConnect();                       // fallback
+        }
+      } else {
+        await connectWalletConnect();
+      }
+      renderWallet();
+    } catch (err) {
+      console.error("[wallet] connect failed:", err);
+      if (err && err.code !== 4001) {
+        alert(t("wallet.failed") + ": " + (err.message || err));
+      }
+      renderWallet();
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove("loading");
+    }
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener("click", closeWalletMenu);
+
+  // Listen for injected account changes even before we connect
+  if (window.ethereum && window.ethereum.on) {
+    window.ethereum.on("accountsChanged", (accs) => {
+      if (walletState.kind !== "injected") return;
+      if (!accs || !accs[0]) disconnectWallet();
+      else { walletState.address = accs[0]; renderWallet(); closeWalletMenu(); }
+    });
+    window.ethereum.on("chainChanged", (cid) => {
+      if (walletState.kind !== "injected") return;
+      walletState.chainId = parseInt(cid, 16);
+      renderWallet();
+    });
+  }
+})();
+
+/* ─── Auto-reconnect on page load if previously connected ─── */
+(async function autoReconnect() {
+  const kind = localStorage.getItem("wallet-kind");
+  if (!kind) return;
+  try {
+    if (kind === "injected" && window.ethereum && window.ethereum.request) {
+      const accs = await window.ethereum.request({ method: "eth_accounts" });
+      if (accs && accs[0]) {
+        walletState.address = accs[0];
+        walletState.kind = "injected";
+        walletState.activeProvider = window.ethereum;
+        try {
+          const cid = await window.ethereum.request({ method: "eth_chainId" });
+          walletState.chainId = parseInt(cid, 16);
+        } catch {}
+        bindProviderEvents(window.ethereum);
+        renderWallet();
+      } else {
+        localStorage.removeItem("wallet-kind");
+      }
+    } else if (kind === "walletconnect") {
+      const p = await getWCProvider();
+      if (p.session && p.accounts && p.accounts[0]) {
+        walletState.address = p.accounts[0];
+        walletState.kind = "walletconnect";
+        walletState.activeProvider = p;
+        walletState.chainId = p.chainId;
+        renderWallet();
+      } else {
+        localStorage.removeItem("wallet-kind");
+      }
+    }
+  } catch (e) {
+    console.warn("[wallet] auto-reconnect failed:", e);
+    localStorage.removeItem("wallet-kind");
+  }
 })();
