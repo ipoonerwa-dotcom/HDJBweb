@@ -77,6 +77,8 @@ function translateError(e) {
   if (/no borrowable|lending not active|借贷未激活/i.test(msg)) return "借贷暂未激活（代币可能还在内盘阶段）";
   if (/below minimum borrow|最小借款/i.test(msg)) return "借款额低于 0.01 BNB 门槛，请增加抵押数量";
   if (/missing revert data/i.test(msg)) return "交易被合约拒绝（常见原因：抵押太少导致借款低于 0.01 BNB 门槛；或金库余额不足）";
+  if (/could not coalesce|COALESCE/i.test(msg)) return "钱包返回的错误无法解析（TP 钱包与 ethers v6 的兼容问题）。请刷新页面重试，或换浏览器环境";
+  if (/intrinsic gas too low|gas required exceeds/i.test(msg)) return "Gas 不够。请在钱包手动把 gas limit 调到 60,000,000 以上";
   if (/wrong repay amount|还款金额错误/i.test(msg)) return "还款金额必须等于借款原值";
   if (/must confirmBuy first|确认履约/i.test(msg)) return "请先点确认履约";
   return msg.length > 180 ? msg.slice(0, 180) + "…" : msg;
@@ -366,7 +368,17 @@ function renderStateMachine() {
     return;
   }
 
-  hideBanner();
+  // Anti-farmer gas warning — poolState 2 = FLAP token's anti-bot phase
+  // where every transfer burns absurd amounts of gas (~50M vs normal ~500k).
+  if (state.poolState === 2) {
+    showBanner("err", "⚠️",
+      "抗机器人阶段 · Gas 会异常高",
+      "FLAP 代币当前处于 antiFarmer 状态（poolState=2），每次 transfer 会烧 ~50M gas（费用约 0.003 BNB）。强烈建议等池子进入 state 3（Live）再操作，届时 gas 降回 ~500k 正常水平。",
+      null);
+    // Don't disable — user may still want to proceed if they accept the cost
+  } else {
+    hideBanner();
+  }
 
   // Phase determination
   const hasActive = state.borrowed > 0n;
@@ -731,7 +743,12 @@ async function doStakeAndBorrow() {
 
   const t = toast("提交抵押 & 借款，请在钱包确认…", "loading", 0);
   try {
-    const tx = await vaultRW.stakeAndBorrow(wei);
+    // Bypass ethers' gas estimation: FLAP's V3-style quoter triggers a
+    // write-protection halt during staticcall (consumes the whole estimate
+    // context by EVM Yellow Paper rule). Some wallets (TP in particular)
+    // then return an error shape ethers v6 can't coalesce, so we pin the
+    // gas limit manually. 60M is enough for the quoter burn + the real op.
+    const tx = await vaultRW.stakeAndBorrow(wei, { gasLimit: 60_000_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("抵押成功，BNB 已到账 ✓ 300 秒内完成买回", "ok", 6000);
