@@ -77,8 +77,9 @@ function translateError(e) {
   if (/no borrowable|lending not active|借贷未激活/i.test(msg)) return "借贷暂未激活（代币可能还在内盘阶段）";
   if (/below minimum borrow|最小借款/i.test(msg)) return "借款额低于 0.01 BNB 门槛，请增加抵押数量";
   if (/missing revert data/i.test(msg)) return "交易被合约拒绝（常见原因：抵押太少导致借款低于 0.01 BNB 门槛；或金库余额不足）";
-  if (/could not coalesce|COALESCE/i.test(msg)) return "钱包返回的错误无法解析（TP 钱包与 ethers v6 的兼容问题）。请刷新页面重试，或换浏览器环境";
-  if (/intrinsic gas too low|gas required exceeds/i.test(msg)) return "Gas 不够。请在钱包手动把 gas limit 调到 60,000,000 以上";
+  if (/could not coalesce|COALESCE/i.test(msg)) return "钱包返回的错误无法解析。请刷新页面重试或换钱包";
+  if (/intrinsic gas too low|gas required exceeds/i.test(msg)) return "Gas 不够，请重试一次";
+  if (/exceeds block gas limit/i.test(msg)) return "钱包 RPC 拒绝（gas 超出节点单笔上限）。请换 RPC 节点或刷新重试";
   if (/wrong repay amount|还款金额错误/i.test(msg)) return "还款金额必须等于借款原值";
   if (/must confirmBuy first|确认履约/i.test(msg)) return "请先点确认履约";
   return msg.length > 180 ? msg.slice(0, 180) + "…" : msg;
@@ -786,7 +787,10 @@ async function doStakeAndBorrow() {
   const t = toast("提交抵押 & 借款，请在钱包确认…", "loading", 0);
   try {
     const data = vaultRO.interface.encodeFunctionData("stakeAndBorrow", [wei]);
-    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, gasLimit: 60_000_000n });
+    // 50M = the magic ceiling: BSC public RPCs cap single-tx gas around here
+    // and the historical actual usage was 49,955,376 (99.91% of 50M). Setting
+    // 60M tripped the node's 'exceeds block gas limit' guard.
+    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, gasLimit: 50_000_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("抵押成功，BNB 已到账 ✓ 300 秒内完成买回", "ok", 6000);
