@@ -787,10 +787,10 @@ async function doStakeAndBorrow() {
   const t = toast("提交抵押 & 借款，请在钱包确认…", "loading", 0);
   try {
     const data = vaultRO.interface.encodeFunctionData("stakeAndBorrow", [wei]);
-    // 50M = the magic ceiling: BSC public RPCs cap single-tx gas around here
-    // and the historical actual usage was 49,955,376 (99.91% of 50M). Setting
-    // 60M tripped the node's 'exceeds block gas limit' guard.
-    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, gasLimit: 50_000_000n });
+    // FLAP fixed their Portal quoter (Apr 24): getOraclePrice now estimates
+    // at ~92k gas instead of consuming 50M via write-protection halt.
+    // 2M gives generous buffer for autoSweep + tax-token transfer.
+    const tx = await sendTx({ to: CFG.VAULT_ADDRESS, data, gasLimit: 2_000_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("抵押成功，BNB 已到账 ✓ 300 秒内完成买回", "ok", 6000);
