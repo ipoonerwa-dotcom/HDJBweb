@@ -1420,3 +1420,59 @@ h1,h2,h3,h4 { font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif; letter-s
     transition-duration: 0.001s !important;
   }
 }
+
+/* ─────────────── Mobile / touch performance overrides ───────────────
+   Kill the heavy full-screen composites that tank fps on mid-range phones:
+   - fullscreen animated gradients / grid drift / scanlines with mix-blend-mode
+   - backdrop-filter blurs (recomputed every scroll frame)
+   - 50px logo halo blur + conic gradient spin
+   - spawned butterfly particles with drop-shadow filters
+   Keeps the aesthetic (static gradient + halo glow) but drops the cost. */
+
+@media (hover: none) and (pointer: coarse), (max-width: 760px) {
+  /* Background layers: static */
+  body::before { animation: none !important; }
+  body::after { animation: none !important; opacity: 0.35; }
+  .bg-grid { animation: none !important; background-size: 72px 72px; }
+  .bg-scanline { display: none !important; }
+
+  /* Nav: solid semi-opaque instead of blur */
+  .nav {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(20,3,5,0.94) !important;
+  }
+
+  /* Hero logo halo: static smaller glow */
+  .hero-logo-halo {
+    animation: none !important;
+    inset: -8% !important;
+    filter: blur(22px) !important;
+    opacity: 0.32 !important;
+  }
+  .hero-logo { animation: logoEnter 0.8s cubic-bezier(.2,.9,.3,1.2) !important; }
+  .hero-logo-wrap { will-change: auto; }
+
+  /* Button shine animation: static (removes the moving highlight pass) */
+  .btn-primary::before { animation: none !important; display: none; }
+
+  /* Progress-bar shimmer: keep fill, drop infinite background-position tween */
+  .tok-bar-fill { animation: none !important; }
+
+  /* Ambient floating butterflies: hide (JS also skips creating them) */
+  .bf-particles { display: none !important; }
+
+  /* Kill the two 360×360 blur(90px) orbs behind the CTA — the single worst
+     repaint offender on mid-range phones */
+  .cta-box::before, .cta-box::after { animation: none !important; }
+
+  /* Main logo still bobs but halo is already static, keep a slower cycle */
+  .hero-logo { animation: logoEnter 0.8s cubic-bezier(.2,.9,.3,1.2), logoFloat 8s ease-in-out infinite !important; }
+
+  /* Lighten step-icon float - a single bob cycle is fine but avoid layering many */
+  .flow-step .step-icon,
+  .cta-emoji { animation-duration: 6s !important; }
+
+  /* Drop box-shadow-heavy hovers on touch (no hover anyway but keeps repaints minimal on tap) */
+  .flow-step:hover, .sec-card:hover, .tok-card:hover, .tile:hover { transform: none !important; }
+}

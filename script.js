@@ -398,8 +398,11 @@ function applyLang(lang) {
   }
 })();
 
-/* ───────────────── Hero parallax on scroll ───────────────── */
+/* ───────────────── Hero parallax on scroll (desktop only) ───────────────── */
+const IS_MOBILE = matchMedia("(hover: none) and (pointer: coarse)").matches || innerWidth < 760;
+
 (function initParallax() {
+  if (IS_MOBILE) return;                 // scroll-driven transforms kill mobile fps
   const logo = document.querySelector(".hero-logo-wrap");
   const grid = document.querySelector(".bg-grid");
   if (!logo) return;
@@ -417,7 +420,7 @@ function applyLang(lang) {
       if (grid) grid.style.backgroundPosition = `${y * 0.15}px ${y * 0.15}px`;
       ticking = false;
     });
-  });
+  }, { passive: true });
 })();
 
 /* ───────────────── Animated progress bars on tok-breakdown ───────────────── */
@@ -442,9 +445,11 @@ function applyLang(lang) {
   bars.forEach(b => io.observe(b));
 })();
 
-/* ───────────────── Ambient floating butterflies (subtle) ───────────────── */
+/* ───────────────── Ambient floating butterflies (desktop only) ───────────────── */
 (function spawnButterflies() {
+  if (IS_MOBILE) return;                 // drop-shadow + continuous animation tanks mobile
   const root = document.createElement("div");
+  root.className = "bf-particles";
   root.setAttribute("aria-hidden", "true");
   Object.assign(root.style, {
     position: "fixed", inset: "0", pointerEvents: "none",
