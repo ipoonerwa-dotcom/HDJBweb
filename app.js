@@ -719,9 +719,10 @@ async function doApprove() {
   if (wei === 0n) { toast("请输入抵押数量", "err"); return;}
   const t = toast("授权代币中，请在钱包确认…", "loading", 0);
   try {
-    // Approve max to skip future approvals
+    // Approve max to skip future approvals. Pin gasLimit to bypass
+    // ethers v6 estimation (avoids the TP-wallet coalesce error).
     const MAX = (1n << 256n) - 1n;
-    const tx = await tokenRW.approve(CFG.VAULT_ADDRESS, MAX);
+    const tx = await tokenRW.approve(CFG.VAULT_ADDRESS, MAX, { gasLimit: 200_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("授权成功 ✓", "ok");
@@ -765,7 +766,8 @@ async function doConfirmBuy() {
   if (!(await ensureWritable())) return;
   const t = toast("确认履约中，请在钱包确认…", "loading", 0);
   try {
-    const tx = await vaultRW.confirmBuy();
+    // Pin gasLimit to skip ethers v6 estimation (TP compatibility)
+    const tx = await vaultRW.confirmBuy({ gasLimit: 1_500_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("履约成功 ✓ 可随时还款解锁抵押", "ok", 5000);
@@ -792,8 +794,10 @@ async function doQuickSwap() {
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
     const path = [CFG.WBNB, CFG.TOKEN_ADDRESS];
     // amountOutMin: 0 (we already pre-fill with 1.5× buffer; router's FOT variant tolerates slippage)
+    // Pin gasLimit: swapFOT + token's tax logic + router overhead — 1.2M is generous
     const tx = await routerRW.swapExactETHForTokensSupportingFeeOnTransferTokens(
-      0n, path, window.JiebeiWallet.address, deadline, { value: valWei }
+      0n, path, window.JiebeiWallet.address, deadline,
+      { value: valWei, gasLimit: 1_200_000n }
     );
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
@@ -816,7 +820,8 @@ async function doRepay() {
   if (amount === 0n) { toast("无借款", "err"); return; }
   const t = toast(`还款 ${fmt(amount)} BNB 中，请在钱包确认…`, "loading", 0);
   try {
-    const tx = await vaultRW.repayAndUnstake({ value: amount });
+    // Pin gasLimit to skip ethers v6 estimation (TP compatibility)
+    const tx = await vaultRW.repayAndUnstake({ value: amount, gasLimit: 1_500_000n });
     t.update("交易已提交，等待上链…", "loading");
     await tx.wait();
     t.update("还款成功 ✓ 抵押已返回钱包", "ok", 5000);
