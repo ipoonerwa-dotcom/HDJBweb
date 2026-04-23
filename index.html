@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>蝴蝶借呗 Butterfly Jiebei · 借呗金库 V2</title>
+<meta name="description" content="蝴蝶借呗 Butterfly Jiebei —— 蝴蝶白条的升级版。双层价格防御、审计加固、最小借款门槛。借一次、涨一次、违约即焚毁。" />
+<link rel="icon" href="logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+SC:wght@400;700;900&family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- Blueprint grid + scanline overlay -->
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-scanline" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="#top">
+      <img class="brand-mark" src="logo.png" alt="蝴蝶借呗" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='inline')" /><span class="brand-fallback" style="display:none">🦋</span>
+      <span class="brand-text">
+        <span class="brand-cn" data-i="brand.cn">蝴蝶借呗</span>
+        <span class="brand-en">BUTTERFLY&nbsp;JIEBEI</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a href="#mechanism" data-i="nav.mechanism">机制</a>
+      <a href="#tokenomics" data-i="nav.tokenomics">代币</a>
+      <a href="#upgrade" data-i="nav.upgrade">升级</a>
+      <a href="#security" data-i="nav.security">安全</a>
+      <a href="#roadmap" data-i="nav.roadmap">路线图</a>
+    </div>
+    <div class="nav-right">
+      <button class="lang-switch" id="langSwitch" aria-label="Language">EN</button>
+      <a class="btn btn-primary btn-soon" href="#cta" data-i="nav.launch" aria-disabled="true">进入 App · 毕业后开放</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<section class="hero" id="top">
+  <div class="container">
+    <div class="hero-logo-wrap">
+      <img class="hero-logo" src="logo.png" alt="蝴蝶借呗" onerror="this.style.display='none'" />
+      <div class="hero-logo-halo" aria-hidden="true"></div>
+    </div>
+
+    <div class="tag-line">
+      <span class="dot"></span>
+      <span data-i="hero.tag">蝴蝶白条的下一代 · 双层预言机 · 审计加固</span>
+    </div>
+
+    <h1 class="hero-title">
+      <span class="title-cn" data-i="hero.title">蝴蝶借呗</span>
+      <span class="title-en">BUTTERFLY&nbsp;JIEBEI</span>
+    </h1>
+
+    <p class="hero-sub">
+      <span data-i="hero.sub1">借一次 · 涨一次</span>
+      <span class="sep">/</span>
+      <span data-i="hero.sub2">违约即焚</span>
+      <span class="sep">/</span>
+      <span data-i="hero.sub3">零稀释 · 单向通缩</span>
+    </p>
+
+    <p class="hero-desc" data-i="hero.desc">
+      在借呗金库抵押代币，秒级借出 BNB —— 300 秒履约窗口内买回即完成循环，
+      每一次借贷都是真实买压，每一次违约都让抵押代币永远进入黑洞。
+      基于蝴蝶白条成熟机制迭代：双层价格防御、最小借款门槛、Guardian 紧急护盾。
+    </p>
+
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#mechanism" data-i="hero.cta1">阅读机制 →</a>
+      <a class="btn btn-ghost" href="#tokenomics" data-i="hero.cta2">看代币经济</a>
+    </div>
+
+    <div class="contract-pill" data-copy="0x30AcfA75fcbDF797eA0893fE449CA2A578B28913" title="点击复制 / Click to copy">
+      <span class="cp-label" data-i="hero.contract">FACTORY</span>
+      <code class="cp-addr">0x30Ac…8913</code>
+      <span class="cp-sep">·</span>
+      <a class="cp-link" href="https://bscscan.com/address/0x30AcfA75fcbDF797eA0893fE449CA2A578B28913#code" target="_blank" rel="noopener" onclick="event.stopPropagation()">BscScan ↗</a>
+      <span class="cp-sep">·</span>
+      <span class="cp-badge" data-i="hero.verified">✓ Verified</span>
+    </div>
+
+    <div class="hero-tiles">
+      <div class="tile">
+        <div class="tile-label" data-i="hero.t1.l">买入税</div>
+        <div class="tile-val"><span class="num">3</span>%</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label" data-i="hero.t2.l">卖出税</div>
+        <div class="tile-val"><span class="num">5</span>%</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label" data-i="hero.t3.l">进入金库</div>
+        <div class="tile-val"><span class="num">6</span>%</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label" data-i="hero.t4.l">履约窗口</div>
+        <div class="tile-val"><span class="num">300</span>s</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ MECHANISM ═══════════════════════════════ -->
+<section class="section" id="mechanism">
+  <div class="container">
+    <header class="sec-head">
+      <div class="sec-tag" data-i="mech.tag">// MECHANISM</div>
+      <h2 class="sec-title" data-i="mech.title">四步闪电借贷</h2>
+      <p class="sec-sub" data-i="mech.sub">
+        小额成本撬动多头火力，每次借贷都是真实买盘。即使违约，抵押也永久焚毁 —— 流通只会减少，不会增加。
+      </p>
+    </header>
+
+    <div class="flow-grid">
+      <article class="flow-step">
+        <div class="step-no">01</div>
+        <div class="step-icon">🪙</div>
+        <h3 data-i="mech.s1.t">买入 & 抵押</h3>
+        <p data-i="mech.s1.d">在 DEX 买入蝴蝶借呗代币，3% 买入税自动进入金库；把持仓抵押进合约作为借款保证。</p>
+        <div class="step-code">buy() → stake(amount)</div>
+      </article>
+      <article class="flow-step">
+        <div class="step-no">02</div>
+        <div class="step-icon">⚡</div>
+        <h3 data-i="mech.s2.t">一键借出 BNB</h3>
+        <p data-i="mech.s2.d">合约用 Portal + TWAP 双层预言机定价，示例：抵押 1 BNB 市值代币可借约 0.1 BNB，300 秒倒计时启动。</p>
+        <div class="step-code">stakeAndBorrow(stakeAmount)</div>
+      </article>
+      <article class="flow-step">
+        <div class="step-no">03</div>
+        <div class="step-icon">🔥</div>
+        <h3 data-i="mech.s3.t">履约 or 焚毁</h3>
+        <p data-i="mech.s3.d">300 秒内用借来的 BNB 买回代币并确认；超时未履约 → 抵押 100% 进入黑洞地址，永久减少流通。</p>
+        <div class="step-code">confirmBuy() · else → burn 🔥</div>
+      </article>
+      <article class="flow-step">
+        <div class="step-no">04</div>
+        <div class="step-icon">💰</div>
+        <h3 data-i="mech.s4.t">还款 & 解锁</h3>
+        <p data-i="mech.s4.d">履约成功后随时还款（0 利息），抵押 100% 取回钱包；可立即复借，无冷却，无限加仓。</p>
+        <div class="step-code">repayAndUnstake()</div>
+      </article>
+    </div>
+
+    <div class="example-box">
+      <div class="ex-head">
+        <span class="ex-label" data-i="mech.ex.tag">LIVE EXAMPLE</span>
+        <span class="ex-dot"></span>
+      </div>
+      <div class="ex-flow">
+        <div class="ex-step"><span class="ex-k" data-i="mech.ex.k1">买入持仓</span><span class="ex-v">1 BNB 市值</span></div>
+        <span class="ex-arr">→</span>
+        <div class="ex-step"><span class="ex-k" data-i="mech.ex.k2">合约评估</span><span class="ex-v">可借 <b>0.1 BNB</b></span></div>
+        <span class="ex-arr">→</span>
+        <div class="ex-step"><span class="ex-k" data-i="mech.ex.k3">300 秒内买回</span><span class="ex-v">买盘推高币价</span></div>
+        <span class="ex-arr">→</span>
+        <div class="ex-step ex-win"><span class="ex-k" data-i="mech.ex.k4">履约 ✓</span><span class="ex-v" data-i="mech.ex.v4">随时还款赎回抵押</span></div>
+      </div>
+      <div class="ex-flow ex-alt">
+        <div class="ex-step"><span class="ex-k" data-i="mech.ex.k5">超过 300 秒</span><span class="ex-v" data-i="mech.ex.v5">未履约</span></div>
+        <span class="ex-arr">→</span>
+        <div class="ex-step ex-burn"><span class="ex-k">🔥</span><span class="ex-v" data-i="mech.ex.v6">抵押 100% 焚毁 · 流通永久减少</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ TOKENOMICS ═══════════════════════════════ -->
+<section class="section" id="tokenomics">
+  <div class="container">
+    <header class="sec-head">
+      <div class="sec-tag" data-i="tok.tag">// TOKENOMICS</div>
+      <h2 class="sec-title" data-i="tok.title">代币经济</h2>
+      <p class="sec-sub" data-i="tok.sub">3% 买入 / 5% 卖出 —— 每笔交易都为通缩飞轮加油。</p>
+    </header>
+
+    <div class="tok-grid">
+      <!-- 税率卡片 -->
+      <div class="tok-card">
+        <div class="tok-row">
+          <span class="tok-k" data-i="tok.buy">买入税</span>
+          <span class="tok-v tok-v-accent">3%</span>
+        </div>
+        <div class="tok-row">
+          <span class="tok-k" data-i="tok.sell">卖出税</span>
+          <span class="tok-v tok-v-danger">5%</span>
+        </div>
+        <div class="tok-divider"></div>
+        <div class="tok-breakdown">
+          <div class="tok-bd-row">
+            <span class="tok-bd-ic">🔥</span>
+            <span class="tok-bd-k" data-i="tok.burn">销毁 Burn</span>
+            <span class="tok-bd-v">1%</span>
+            <span class="tok-bar"><span class="tok-bar-fill" style="width:12.5%;background:var(--danger)"></span></span>
+          </div>
+          <div class="tok-bd-row">
+            <span class="tok-bd-ic">💧</span>
+            <span class="tok-bd-k" data-i="tok.reflow">流动性回流 LP</span>
+            <span class="tok-bd-v">1%</span>
+            <span class="tok-bar"><span class="tok-bar-fill" style="width:12.5%;background:var(--emerald)"></span></span>
+          </div>
+          <div class="tok-bd-row">
+            <span class="tok-bd-ic">🏦</span>
+            <span class="tok-bd-k" data-i="tok.vault">借呗金库 Vault</span>
+            <span class="tok-bd-v">6%</span>
+            <span class="tok-bar"><span class="tok-bar-fill" style="width:75%;background:var(--amber)"></span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 飞轮 -->
+      <div class="tok-card tok-wheel">
+        <div class="wheel-title" data-i="tok.wheel">FLYWHEEL · 通缩飞轮</div>
+        <div class="wheel-step">
+          <span class="wheel-n">01</span>
+          <span data-i="tok.w1">交易税自动注入金库</span>
+        </div>
+        <div class="wheel-arr">↓</div>
+        <div class="wheel-step">
+          <span class="wheel-n">02</span>
+          <span data-i="tok.w2">金库 BNB 供用户借贷</span>
+        </div>
+        <div class="wheel-arr">↓</div>
+        <div class="wheel-step">
+          <span class="wheel-n">03</span>
+          <span data-i="tok.w3">借款 BNB 强制买回代币</span>
+        </div>
+        <div class="wheel-arr">↓</div>
+        <div class="wheel-step wheel-final">
+          <span class="wheel-n">04</span>
+          <span data-i="tok.w4">币价上涨 + 违约焚毁 = 双向通缩</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ UPGRADE (VS 白条) ═══════════════════════════════ -->
+<section class="section" id="upgrade">
+  <div class="container">
+    <header class="sec-head">
+      <div class="sec-tag" data-i="up.tag">// UPGRADE</div>
+      <h2 class="sec-title" data-i="up.title">借呗 vs 白条</h2>
+      <p class="sec-sub" data-i="up.sub">基于蝴蝶白条验证过的机制全面升级。同样的理念，更狠的执行。</p>
+    </header>
+
+    <div class="cmp-table">
+      <div class="cmp-row cmp-head">
+        <div data-i="up.h.k">指标</div>
+        <div class="cmp-head-old" data-i="up.h.a">蝴蝶白条</div>
+        <div class="cmp-head-new" data-i="up.h.b">蝴蝶借呗</div>
+      </div>
+      <div class="cmp-row">
+        <div data-i="up.r1.k">价格预言机</div>
+        <div class="old">单源 LP 即时价</div>
+        <div class="new" data-i="up.r1.v">Portal + TWAP 双层防御</div>
+      </div>
+      <div class="cmp-row">
+        <div data-i="up.r2.k">抗闪电贷</div>
+        <div class="old">❌</div>
+        <div class="new" data-i="up.r2.v">✅ 彻底移除 spot 降级</div>
+      </div>
+      <div class="cmp-row">
+        <div data-i="up.r3.k">抗灌水攻击</div>
+        <div class="old">无门槛</div>
+        <div class="new" data-i="up.r3.v">MIN_BORROW 门槛 + 队列有界 + Keeper 奖励</div>
+      </div>
+      <div class="cmp-row">
+        <div data-i="up.r4.k">紧急权限</div>
+        <div class="old">Creator 可动金库</div>
+        <div class="new" data-i="up.r4.v">Guardian 多签护盾，Creator 无金库权</div>
+      </div>
+      <div class="cmp-row">
+        <div data-i="up.r5.k">履约窗口</div>
+        <div class="old">100s 写死</div>
+        <div class="new" data-i="up.r5.v">默认 300s · 可调 60–3600</div>
+      </div>
+      <div class="cmp-row">
+        <div data-i="up.r6.k">审计状态</div>
+        <div class="old">内审</div>
+        <div class="new" data-i="up.r6.v">Flap 平台审计 · 全部发现已修复</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ SECURITY ═══════════════════════════════ -->
+<section class="section" id="security">
+  <div class="container">
+    <header class="sec-head">
+      <div class="sec-tag" data-i="sec.tag">// SECURITY</div>
+      <h2 class="sec-title" data-i="sec.title">安全设计</h2>
+      <p class="sec-sub" data-i="sec.sub">借呗的安全不是口号，是代码、审计和治理结构三位一体。</p>
+    </header>
+
+    <div class="sec-grid">
+      <div class="sec-card">
+        <div class="sec-ic">🛡️</div>
+        <h3 data-i="sec.c1.t">双层价格预言机</h3>
+        <p data-i="sec.c1.d">FLAP Portal Oracle 为主，LP TWAP 为辅。彻底移除可被单笔闪电贷操纵的现货价降级路径。</p>
+      </div>
+      <div class="sec-card">
+        <div class="sec-ic">🔒</div>
+        <h3 data-i="sec.c2.t">Guardian 紧急权</h3>
+        <p data-i="sec.c2.d">emergencyWithdraw 仅 FLAP 官方多签可调用。Creator 无权提走金库 BNB，从源头堵 rug。</p>
+      </div>
+      <div class="sec-card">
+        <div class="sec-ic">⚖️</div>
+        <h3 data-i="sec.c3.t">硬地板保护</h3>
+        <p data-i="sec.c3.d">hardFloorBnb + totalOutstanding 双追踪，金库余额永远不会被借款掏空到 0。</p>
+      </div>
+      <div class="sec-card">
+        <div class="sec-ic">🚫</div>
+        <h3 data-i="sec.c4.t">抗灌水队列</h3>
+        <p data-i="sec.c4.d">MAX_PENDING=50 + 最小借款门槛 + 滑动游标清扫 + 1% keeper 奖励，令占位攻击成本远高于收益。</p>
+      </div>
+      <div class="sec-card">
+        <div class="sec-ic">🔄</div>
+        <h3 data-i="sec.c5.t">MEV 同块防护</h3>
+        <p data-i="sec.c5.d">S_total 跨块快照，同块操纵借贷的三明治攻击自动失效。</p>
+      </div>
+      <div class="sec-card">
+        <div class="sec-ic">📜</div>
+        <h3 data-i="sec.c6.t">链上透明</h3>
+        <p data-i="sec.c6.d">合约开源、参数可审计、事件完整。零后门、零管理员提款。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ ROADMAP ═══════════════════════════════ -->
+<section class="section" id="roadmap">
+  <div class="container">
+    <header class="sec-head">
+      <div class="sec-tag" data-i="road.tag">// ROADMAP</div>
+      <h2 class="sec-title" data-i="road.title">发展路线</h2>
+    </header>
+
+    <div class="road-list">
+      <div class="road-item road-done">
+        <div class="road-tag" data-i="road.p1.tag">PHASE 01 · 已完成</div>
+        <h4 data-i="road.p1.t">合约审计 + 修复</h4>
+        <p data-i="road.p1.d">Flap 平台全量审计，全部发现已修复；双层预言机落地；MIN_BORROW 防灌水生效。</p>
+      </div>
+      <div class="road-item road-active">
+        <div class="road-tag" data-i="road.p2.tag">PHASE 02 · 进行中</div>
+        <h4 data-i="road.p2.t">内盘发射 + 底池毕业</h4>
+        <p data-i="road.p2.d">FLAP 平台内盘启动 → 累计 15.99 BNB 自动毕业 → PancakeSwap 建池。</p>
+      </div>
+      <div class="road-item">
+        <div class="road-tag" data-i="road.p3.tag">PHASE 03 · 即将</div>
+        <h4 data-i="road.p3.t">借贷激活 + DApp 上线</h4>
+        <p data-i="road.p3.d">毕业即激活借贷面板；内嵌 Swap 免跳转；TWAP 预热后全量开放。</p>
+      </div>
+      <div class="road-item">
+        <div class="road-tag" data-i="road.p4.tag">PHASE 04 · 远期</div>
+        <h4 data-i="road.p4.t">Butterfly 生态 · 多链部署</h4>
+        <p data-i="road.p4.d">将借呗模式复制到更多代币；跨链金库；社区治理与分润。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ CTA ═══════════════════════════════ -->
+<section class="section cta" id="cta">
+  <div class="container">
+    <div class="cta-box">
+      <div class="cta-emoji">🦋</div>
+      <h2 class="cta-title" data-i="cta.title">准备好开撸第一波了吗？</h2>
+      <p class="cta-desc" data-i="cta.desc">借呗已审计完成，毕业即可开撸。连接钱包进入 App，或先买入一手筹码。</p>
+      <div class="cta-actions">
+        <a class="btn btn-primary btn-lg" href="https://pancakeswap.finance/swap" target="_blank" rel="noopener" data-i="cta.b1">买入代币 🪙</a>
+        <a class="btn btn-ghost btn-lg btn-soon" href="#" aria-disabled="true" data-i="cta.b2">DApp · 毕业后开放</a>
+      </div>
+      <div class="cta-meta">
+        <span data-i="cta.meta1">BNB Chain</span>
+        <span class="sep">·</span>
+        <span data-i="cta.meta2">合约开源</span>
+        <span class="sep">·</span>
+        <span data-i="cta.meta3">审计通过</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ FOOTER ═══════════════════════════════ -->
+<footer class="footer">
+  <div class="container foot-inner">
+    <div class="foot-brand">
+      <div class="brand">
+        <img class="brand-mark" src="logo.png" alt="蝴蝶借呗" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='inline')" /><span class="brand-fallback" style="display:none">🦋</span>
+        <span class="brand-text">
+          <span class="brand-cn">蝴蝶借呗</span>
+          <span class="brand-en">BUTTERFLY JIEBEI</span>
+        </span>
+      </div>
+      <p class="foot-tag" data-i="foot.tag">借一次 · 涨一次 · 违约即焚</p>
+    </div>
+    <div class="foot-cols">
+      <div>
+        <div class="foot-h" data-i="foot.h1">协议</div>
+        <a href="#mechanism" data-i="foot.l1">机制</a>
+        <a href="#tokenomics" data-i="foot.l2">代币</a>
+        <a href="#security" data-i="foot.l3">安全</a>
+      </div>
+      <div>
+        <div class="foot-h" data-i="foot.h2">资源</div>
+        <a href="https://bscscan.com/address/0x30AcfA75fcbDF797eA0893fE449CA2A578B28913#code" target="_blank" rel="noopener" data-i="foot.l4">Factory 合约</a>
+        <a href="#" data-i="foot.l5">审计报告</a>
+        <a href="#" data-i="foot.l6">GitHub</a>
+      </div>
+      <div>
+        <div class="foot-h" data-i="foot.h3">社区</div>
+        <a href="#">Telegram</a>
+        <a href="#">X / Twitter</a>
+        <a href="#">Discord</a>
+      </div>
+    </div>
+  </div>
+  <div class="foot-bar">
+    <span>© 2026 Butterfly Jiebei</span>
+    <span class="sep">·</span>
+    <span data-i="foot.disclaim">DYOR · 纯链上算法治理 · 无中心化托管</span>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
